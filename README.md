@@ -4,7 +4,7 @@ An [Orca](https://orca.dev) plugin that runs your workspace's tests from the rig
 agent finishes a turn, it re-runs the tests related to what the agent changed, and a failure can go
 back to that agent in one click, or on its own.
 
-Documentation: https://h00ns.github.io/test-runner-for-orca/
+[Orca directory](https://orca.dev/plugins/h00ns/test-runner-for-orca) · [Documentation](https://h00ns.github.io/test-runner-for-orca/) · [한국어 문서](https://h00ns.github.io/test-runner-for-orca/ko/)
 
 <img src="images/panel.png" width="340" alt="The Test Runner panel: three projects, two failures (one new), a flaky test, and the buttons that send failures to the agent">
 
