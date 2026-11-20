@@ -1,0 +1,136 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "id": "test-runner",
+  "name": "Test Runner",
+  "version": "0.1.0",
+  "description": "Run a workspace's Vitest or Jest tests from the sidebar, re-run them when an agent finishes, and send failures back to the agent to fix.",
+  "author": {
+    "name": "h00ns",
+    "url": "https://github.com/h00ns"
+  },
+  "repository": "https://github.com/h00ns/test-runner-for-orca",
+  "homepage": "https://h00ns.github.io/test-runner-for-orca/",
+  "license": "MIT",
+  "icon": "images/icon.png",
+  "cover": {
+    "path": "images/cover.png",
+    "alt": "The Test Runner panel with a failing and a passing run, and a notification that tests fail after an agent finished"
+  },
+  "screenshots": [
+    {
+      "path": "images/screenshot-loop.png",
+      "alt": "A failing test in the panel and the one-line prompt Test Runner types into the agent",
+      "caption": "Failures go back to the agent in one click"
+    },
+    {
+      "path": "images/screenshot-themes.png",
+      "alt": "The panel while tests run, failing tests in the light theme, and all tests passing in the dark theme",
+      "caption": "Built with Orca components: light, dark, native"
+    }
+  ],
+  "engines": {
+    "orca": ">=1.4.260"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "contributes": {
+    "panels": [
+      {
+        "id": "test-runner",
+        "title": "Test Runner",
+        "icon": "activity",
+        "entry": "src/panel.tsx",
+        "ui": "components"
+      }
+    ],
+    "commands": [
+      {
+        "id": "run-tests",
+        "title": "Test Runner: Run tests in this workspace"
+      }
+    ],
+    "events": [
+      {
+        "on": "workspace.changed"
+      },
+      {
+        "on": "agent.status.changed"
+      }
+    ],
+    "settings": [
+      {
+        "key": "autoRunWhenAgentFinishes",
+        "title": "Run tests when an agent finishes",
+        "description": "Re-runs a workspace's tests when one of its agents finishes a turn that changed files.",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "notifyOnFailure",
+        "title": "Notify after automatic runs",
+        "description": "Shows a desktop notification when an automatic run fails, or passes again after failing.",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "agent",
+        "title": "Agent to start",
+        "description": "Started with the failure when the workspace has no agent to send it to.",
+        "type": "string",
+        "default": "claude",
+        "enum": [
+          "claude",
+          "codex",
+          "gemini",
+          "opencode",
+          "cursor",
+          "copilot"
+        ],
+        "enumLabels": [
+          "Claude Code",
+          "Codex",
+          "Gemini CLI",
+          "OpenCode",
+          "Cursor",
+          "GitHub Copilot"
+        ]
+      },
+      {
+        "key": "timeoutMinutes",
+        "title": "Run timeout (minutes)",
+        "type": "integer",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 60
+      }
+    ]
+  },
+  "capabilities": [
+    {
+      "kind": "workspace:read"
+    },
+    {
+      "kind": "workspace:write"
+    },
+    {
+      "kind": "agent:read"
+    },
+    {
+      "kind": "agent:launch"
+    },
+    {
+      "kind": "terminal:send"
+    },
+    {
+      "kind": "notifications:show"
+    },
+    {
+      "kind": "storage:own"
+    },
+    {
+      "kind": "settings:own"
+    }
+  ]
+}
