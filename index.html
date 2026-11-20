@@ -29,6 +29,7 @@
       <ol>
         <li><a href="#overview">Overview</a></li>
         <li><a href="#install">Install</a></li>
+        <li class="sub"><a href="#setup-with-agent">Set it up with your agent</a></li>
         <li><a href="#runners">Supported runners</a></li>
         <li><a href="#agent">After an agent finishes</a></li>
         <li><a href="#auto-fix">Sending failures back</a></li>
@@ -69,6 +70,16 @@
       <p>In Orca, open <strong>Settings → Plugins</strong>, search for <strong>Test Runner</strong> and install it. Or from a terminal:</p>
       <pre><code>orca plugin install h00ns/test-runner-for-orca</code></pre>
       <p>Orca lists the <a href="#access">access</a> the plugin asks for before it runs. Then open the <strong>Test Runner</strong> tab in the right sidebar. It needs Orca 1.4.260 or later.</p>
+      <h3 id="setup-with-agent">Set it up with your agent</h3>
+      <p>Test Runner finds most projects on its own. If yours needs a config file, or you want one your team can commit, paste this into an agent in the workspace. It writes <a href="#config"><code>.orca-test-runner.json</code></a> and checks that each suite runs. The panel picks the file up the next time it opens, or when you press <strong>Check again</strong>.</p>
+      <div class="copyable"><button class="copy" type="button" data-copy-target="setup-prompt" data-done="Copied" data-fail="Select and copy">Copy</button><pre class="prompt" id="setup-prompt"><code>Set up Test Runner for Orca in this repository by writing .orca-test-runner.json at the repository root.
+
+1. Find every test suite: Vitest, Jest, Playwright, Cypress, Gradle, Maven or pytest. Look at every package.json (workspace packages too) and its test scripts, the runners' config files, build.gradle(.kts), pom.xml and pyproject.toml.
+2. Add one entry to "projects" per suite, with "name", "root" (its folder relative to the repository root; leave it out for the root) and "runner" (vitest, jest, playwright, cypress, gradle, maven or pytest).
+3. Add "args" only when the suite needs them, such as a config file, taken from how its test script runs it. Never add reporter, output file, watch or coverage options: Test Runner adds its own. Add "env" only for variables the tests need.
+4. Set "autoRun": false for slow suites: browser tests (Playwright, Cypress) and tests that need a running server or database.
+5. Start the file with "$schema": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json" and keep it valid JSON, without comments.
+6. Run each suite once with its runner and those args to check they work. Then tell me what you set up, and anything you left out and why.</code></pre></div>
 
       <h2 id="runners">Supported runners</h2>
       <table>
@@ -108,7 +119,7 @@
       <p>Test Runner reads <code>pnpm-workspace.yaml</code> or the <code>workspaces</code> field of package.json and makes one project per package and runner. A root that only installs the runner for its packages runs nothing itself. A root with its own configuration, such as a Vitest workspace or Jest <code>projects</code>, runs its packages for them. The panel can run one project at a time.</p>
 
       <h2 id="config">Configuration</h2>
-      <p>Detection covers most repositories. For the rest, add <code>.orca-test-runner.json</code> to the workspace root and commit it, so your team shares it.</p>
+      <p><a href="#setup-with-agent">Your agent can write it for you.</a> Detection covers most repositories. For the rest, add <code>.orca-test-runner.json</code> to the workspace root and commit it, so your team shares it.</p>
       <pre><code>{
   "$schema": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json",
   "autoRunScope": "related",
@@ -183,5 +194,21 @@
       <span>A community plugin, not made by the Orca team.</span>
     </div>
   </footer>
+  <script>
+    // Copy buttons: the only script on the page.
+    for (const button of document.querySelectorAll('[data-copy-target]')) {
+      const label = button.textContent
+      button.addEventListener('click', async () => {
+        const text = document.getElementById(button.dataset.copyTarget).innerText
+        try {
+          await navigator.clipboard.writeText(text)
+          button.textContent = button.dataset.done
+        } catch {
+          button.textContent = button.dataset.fail
+        }
+        setTimeout(() => (button.textContent = label), 1500)
+      })
+    }
+  </script>
 </body>
 </html>
