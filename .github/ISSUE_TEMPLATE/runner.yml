@@ -1,0 +1,10 @@
+name: Runner or project layout support
+description: A test runner, or a repository layout, that Test Runner does not handle
+body:
+  - type: textarea
+    id: layout
+    attributes:
+      label: The runner, how it is set up, and how you run it today
+      placeholder: "Bun test in a turborepo; we run `bun test` in each package"
+    validations:
+      required: true

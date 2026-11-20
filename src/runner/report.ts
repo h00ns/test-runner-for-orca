@@ -1,11 +1,14 @@
 // Reads the Jest-compatible JSON report that both `vitest --reporter=json` and `jest --json`
 // write. Pure: no file system, so tests feed it plain objects.
-import type { TestFailure } from '../protocol'
+import type { TestFailure } from '../protocol.ts'
+
+/** A failure as a report states it; the worker adds the project and the new/flaky flags. */
+export type ParsedFailure = Omit<TestFailure, 'project' | 'isNew' | 'flaky'>
 
 export const MAX_FAILURES = 50
-const MAX_MESSAGE_CHARS = 3000
-const MAX_NAME_CHARS = 300
-const MAX_ID_CHARS = 600
+export const MAX_MESSAGE_CHARS = 3000
+export const MAX_NAME_CHARS = 300
+export const MAX_ID_CHARS = 600
 
 type AssertionResult = {
   title?: unknown
@@ -27,8 +30,10 @@ export type ParsedReport = {
   failed: number
   skipped: number
   total: number
-  failures: TestFailure[]
+  failures: ParsedFailure[]
   failuresTruncated: boolean
+  /** Workspace-relative test files the run reached, passing or not. */
+  files: string[]
 }
 
 // eslint-disable-next-line no-control-regex
@@ -38,7 +43,8 @@ export function stripAnsi(text: string): string {
   return text.replace(ANSI, '')
 }
 
-const RUNNER_FRAME = /^\s*at .*(node_modules[\\/]|node:internal|\(<anonymous>\)|processTicksAndRejections)/
+const RUNNER_FRAME =
+  /^\s*at .*(node_modules[\\/]|node:internal|\(<anonymous>\)|processTicksAndRejections)|^\s*at (?:[\w.-]+\/\/)?(org\.junit|org\.opentest4j|org\.gradle|worker\.org\.gradle|org\.apache\.maven|java\.base\/|java\.lang\.reflect|jdk\.internal|sun\.reflect|kotlin\.coroutines)|^\s*\.\.\. \d+ more$/
 
 /** Drops stack frames inside the runner and Node, which say nothing about the test. */
 export function trimStack(text: string): string {
@@ -53,13 +59,13 @@ function str(value: unknown): string {
 }
 
 /** One line, no control characters, at most `max` characters. */
-function clip(text: string, max: number): string {
+export function clip(text: string, max: number): string {
   // eslint-disable-next-line no-control-regex
   const flat = text.replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').replace(/\s+/g, ' ').trim()
   return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
 }
 
-function truncate(text: string, max: number): string {
+export function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max)}\n…` : text
 }
 
@@ -82,14 +88,14 @@ export function workspaceRelative(
   return target
 }
 
-/** The first `file:line:col` in a stack that names this test file. */
+/** The first `file:line` (or `file:line:col`) in a stack that names this test file. */
 export function lineFromMessage(message: string, absoluteFile: string): number | null {
   const name = absoluteFile.replace(/\\/g, '/').split('/').pop()
   if (!name) {
     return null
   }
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const match = new RegExp(`${escaped}:(\\d+):\\d+`).exec(message.replace(/\\/g, '/'))
+  const match = new RegExp(`(?:^|[\\s/(\\\\"'])${escaped}:(\\d+)`).exec(message.replace(/\\/g, '/'))
   return match ? Number(match[1]) : null
 }
 
@@ -100,13 +106,13 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
   if (!files) {
     throw new Error('The test report has no testResults.')
   }
-  const failures: TestFailure[] = []
+  const failures: ParsedFailure[] = []
   let passed = 0
   let failed = 0
   let skipped = 0
   let truncated = false
   const seen = new Map<string, number>()
-  const push = (failure: TestFailure) => {
+  const push = (failure: ParsedFailure) => {
     if (failures.length >= MAX_FAILURES) {
       truncated = true
       return
@@ -118,9 +124,13 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
     failures.push(count === 1 ? failure : { ...failure, id: `${failure.id}#${count}` })
   }
 
+  const ran = new Set<string>()
   for (const fileResult of files) {
     const absolute = str(fileResult.name)
     const file = workspaceRelative(roots, absolute)
+    if (absolute) {
+      ran.add(file)
+    }
     const assertions = Array.isArray(fileResult.assertionResults)
       ? (fileResult.assertionResults as AssertionResult[])
       : []
@@ -182,6 +192,7 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
     skipped,
     total: passed + failed + skipped,
     failures,
-    failuresTruncated: truncated
+    failuresTruncated: truncated,
+    files: [...ran]
   }
 }

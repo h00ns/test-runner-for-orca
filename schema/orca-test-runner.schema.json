@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json",
+  "title": ".orca-test-runner.json",
+  "description": "Which tests the Test Runner plugin for Orca runs in this workspace.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "autoRunScope": {
+      "enum": ["related", "all"],
+      "description": "What runs after an agent finishes: only tests related to the changed files (Vitest, Jest), or every test."
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Environment variables for every project."
+    },
+    "ignore": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Folders to leave out of detection. Ignored when \"projects\" is given."
+    },
+    "projects": {
+      "type": "array",
+      "description": "The projects to run, instead of detecting them.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "description": "Shown in the panel. Defaults to the package name." },
+          "root": { "type": "string", "description": "Folder relative to the workspace root. Defaults to the root." },
+          "runner": {
+            "enum": ["vitest", "jest", "playwright", "cypress", "gradle", "maven", "pytest"],
+            "description": "Detected in the folder when left out."
+          },
+          "args": { "type": "array", "items": { "type": "string" }, "description": "Added to the runner's command." },
+          "env": { "type": "object", "additionalProperties": { "type": "string" } },
+          "autoRun": { "type": "boolean", "description": "Run after an agent finishes. Defaults to true, false for Playwright and Cypress." }
+        }
+      }
+    }
+  }
+}

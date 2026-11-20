@@ -3,8 +3,8 @@
   "manifestVersion": 2,
   "id": "test-runner",
   "name": "Test Runner",
-  "version": "0.1.0",
-  "description": "Run a workspace's Vitest or Jest tests from the sidebar, re-run them when an agent finishes, and send failures back to the agent to fix.",
+  "version": "0.2.0",
+  "description": "Run your workspace's tests from the sidebar, re-run the related ones when an agent finishes, and send failures back to the agent. Vitest, Jest, Playwright, Cypress, Gradle, Maven and pytest; monorepos included.",
   "author": {
     "name": "h00ns",
     "url": "https://github.com/h00ns"
@@ -15,18 +15,18 @@
   "icon": "images/icon.png",
   "cover": {
     "path": "images/cover.png",
-    "alt": "The Test Runner panel with a failing and a passing run, and a notification that tests fail after an agent finished"
+    "alt": "The Test Runner panel showing a monorepo run with two failing tests, one of them new, after an agent finished"
   },
   "screenshots": [
     {
       "path": "images/screenshot-loop.png",
       "alt": "A failing test in the panel and the one-line prompt Test Runner types into the agent",
-      "caption": "Failures go back to the agent in one click"
+      "caption": "Failures go back to the agent as one line"
     },
     {
       "path": "images/screenshot-themes.png",
-      "alt": "The panel while tests run, failing tests in the light theme, and all tests passing in the dark theme",
-      "caption": "Built with Orca components: light, dark, native"
+      "alt": "The panel while a monorepo runs, failing tests in the dark theme, and every project passing in the light theme",
+      "caption": "Light and dark, per project"
     }
   ],
   "engines": {
@@ -63,9 +63,46 @@
       {
         "key": "autoRunWhenAgentFinishes",
         "title": "Run tests when an agent finishes",
-        "description": "Re-runs a workspace's tests when one of its agents finishes a turn that changed files.",
+        "description": "Re-runs tests in a workspace after one of its agents finishes a turn that changed files. Browser tests (Playwright, Cypress) are left out unless .orca-test-runner.json opts them in.",
         "type": "boolean",
         "default": true
+      },
+      {
+        "key": "autoRunScope",
+        "title": "What runs after an agent finishes",
+        "description": "Related: only tests that import the changed files (Vitest and Jest; other runners run their whole suite when their folder changed). All: every test.",
+        "type": "string",
+        "default": "related",
+        "enum": [
+          "related",
+          "all"
+        ],
+        "enumLabels": [
+          "Related tests",
+          "All tests"
+        ]
+      },
+      {
+        "key": "retryFailures",
+        "title": "Re-run failures once to catch flaky tests",
+        "description": "A test that fails and then passes is marked flaky and is not sent to the agent.",
+        "type": "boolean",
+        "default": true
+      },
+      {
+        "key": "autoFix",
+        "title": "Send new failures back to the agent automatically",
+        "description": "After an automatic run, failures the agent caused are typed into that agent, which fixes them and triggers the next run.",
+        "type": "boolean",
+        "default": false
+      },
+      {
+        "key": "autoFixMaxRounds",
+        "title": "Rounds before automatic sending stops",
+        "type": "integer",
+        "default": 3,
+        "minimum": 1,
+        "maximum": 10
       },
       {
         "key": "notifyOnFailure",
@@ -77,7 +114,7 @@
       {
         "key": "agent",
         "title": "Agent to start",
-        "description": "Started with the failure when the workspace has no agent to send it to.",
+        "description": "Started with the failure when you ask for a fix and the workspace has no agent.",
         "type": "string",
         "default": "claude",
         "enum": [
@@ -99,11 +136,20 @@
       },
       {
         "key": "timeoutMinutes",
-        "title": "Run timeout (minutes)",
+        "title": "Timeout per project (minutes)",
         "type": "integer",
         "default": 10,
         "minimum": 1,
         "maximum": 60
+      }
+    ],
+    "statusBarItems": [
+      {
+        "id": "tests",
+        "text": "Tests",
+        "icon": "activity",
+        "tooltip": "Test Runner: run tests in this workspace",
+        "command": "run-tests"
       }
     ]
   },

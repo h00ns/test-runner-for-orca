@@ -1,0 +1,18 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # The pure modules (projects, reports, prompts) run on plain Node, which strips the types.
+      # Worker and panel tests need the Orca CLI: run `orca plugin test .` locally.
+      - run: node --test src/agent-prompt.test.ts src/workspace-signature.test.ts src/runner/*.test.ts
+      - name: Manifest and config schema are valid JSON
+        run: node -e "for (const f of ['orca-plugin.json','schema/orca-test-runner.schema.json']) JSON.parse(require('fs').readFileSync(f,'utf8'))"

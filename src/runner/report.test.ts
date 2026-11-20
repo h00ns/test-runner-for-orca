@@ -1,5 +1,6 @@
-import { assert, test } from 'orca/testing'
-import { lineFromMessage, parseReport, stripAnsi, trimStack, workspaceRelative } from './report'
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { lineFromMessage, parseReport, stripAnsi, trimStack, workspaceRelative } from './report.ts'
 
 const root = '/work/app'
 
@@ -115,6 +116,9 @@ test('helpers', () => {
   assert.equal(workspaceRelative('/work/app', '/elsewhere/a.ts'), '/elsewhere/a.ts')
   assert.equal(lineFromMessage('at /x/my.test.ts:42:3', '/x/my.test.ts'), 42)
   assert.equal(lineFromMessage('no stack here', '/x/my.test.ts'), null)
+  assert.equal(lineFromMessage('at com.acme.CartTest.adds(CartTest.java:42)', '/x/CartTest.java'), 42)
+  assert.equal(lineFromMessage('tests/test_cart.py:12: AssertionError', '/x/tests/test_cart.py'), 12)
+  assert.equal(lineFromMessage('at /x/xsum.test.ts:9:1', '/x/sum.test.ts'), null)
 })
 
 test('drops runner and Node frames from stacks, keeping the test file frames', () => {

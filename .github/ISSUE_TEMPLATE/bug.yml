@@ -1,0 +1,29 @@
+name: Bug
+description: Something does not work as described
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: input
+    id: runner
+    attributes:
+      label: Runner and version
+      placeholder: vitest 3.2.4 (pnpm monorepo)
+    validations:
+      required: true
+  - type: input
+    id: orca
+    attributes:
+      label: Orca version and OS
+      placeholder: Orca 1.4.266, macOS 15
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Plugin logs
+      description: Output of `orca plugin logs h00ns.test-runner`
+      render: text
