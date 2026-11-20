@@ -31,6 +31,23 @@ orca plugin install h00ns/test-runner-for-orca
 
 Orca shows the access the plugin asks for before it runs (see [Access](#access)).
 
+### Set it up with your agent
+
+Test Runner finds most projects on its own. If yours needs a config file, or you want one your
+team can commit, paste this into an agent in the workspace. It writes
+[`.orca-test-runner.json`](#configuration) and checks that each suite runs.
+
+```text
+Set up Test Runner for Orca in this repository by writing .orca-test-runner.json at the repository root.
+
+1. Find every test suite: Vitest, Jest, Playwright, Cypress, Gradle, Maven or pytest. Look at every package.json (workspace packages too) and its test scripts, the runners' config files, build.gradle(.kts), pom.xml and pyproject.toml.
+2. Add one entry to "projects" per suite, with "name", "root" (its folder relative to the repository root; leave it out for the root) and "runner" (vitest, jest, playwright, cypress, gradle, maven or pytest).
+3. Add "args" only when the suite needs them, such as a config file, taken from how its test script runs it. Never add reporter, output file, watch or coverage options: Test Runner adds its own. Add "env" only for variables the tests need.
+4. Set "autoRun": false for slow suites: browser tests (Playwright, Cypress) and tests that need a running server or database.
+5. Start the file with "$schema": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json" and keep it valid JSON, without comments.
+6. Run each suite once with its runner and those args to check they work. Then tell me what you set up, and anything you left out and why.
+```
+
 ## Supported runners
 
 | Runner | Found from | After an agent finishes | Re-run failed | Notes |
@@ -74,7 +91,7 @@ Pick one project in the panel to run only that one.
 ## Configuration
 
 Detection covers most repositories. For the rest, put `.orca-test-runner.json` in the workspace
-root and commit it, so your team shares it:
+root and commit it, so your team shares it ([your agent can write it](#set-it-up-with-your-agent)):
 
 ```json
 {
