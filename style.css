@@ -99,6 +99,8 @@ footer .inner { max-width: 1080px; margin: 0 auto; padding: 20px 24px 40px; disp
 @media (max-width: 520px) {
   header.top .inner, .layout, footer .inner { padding-left: 16px; padding-right: 16px; }
   header.top nav { gap: 14px; }
+  /* The page title sits right below: on a phone the header keeps only the icon. */
+  .brand { font-size: 0; gap: 0; }
   header.top nav a[href="#install"] { display: none; }
   h1 { font-size: 26px; }
 }
