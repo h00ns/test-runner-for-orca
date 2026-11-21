@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- The plugin's description and directory page say how to set up a repository that is not found on
+  its own: the README prompt has your agent write `.orca-test-runner.json`.
+
 ## 0.2.1
 
 - Tests now run with your own `node`. 0.2.0 ran JS runners with Orca's built-in Electron inside

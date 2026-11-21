@@ -3,8 +3,8 @@
   "manifestVersion": 2,
   "id": "test-runner",
   "name": "Test Runner",
-  "version": "0.2.1",
-  "description": "Run your workspace's tests from the sidebar, re-run the related ones when an agent finishes, and send failures back to the agent. Vitest, Jest, Playwright, Cypress, Gradle, Maven and pytest; monorepos included.",
+  "version": "0.2.2",
+  "description": "Run your workspace's tests from the sidebar, re-run the related ones when an agent finishes, and send failures back to the agent. Vitest, Jest, Playwright, Cypress, Gradle, Maven and pytest are found on their own, monorepos included; if your setup is not, the README has a prompt that has your agent write .orca-test-runner.json at the repository root.",
   "author": {
     "name": "h00ns",
     "url": "https://github.com/h00ns"
@@ -22,6 +22,11 @@
       "path": "images/screenshot-loop.png",
       "alt": "A failing test in the panel and the one-line prompt Test Runner types into the agent",
       "caption": "Failures go back to the agent as one line"
+    },
+    {
+      "path": "images/screenshot-setup.png",
+      "alt": "The README prompt that has an agent write .orca-test-runner.json, next to the file it writes",
+      "caption": "Most repositories need no setup; for the rest, ask your agent"
     },
     {
       "path": "images/screenshot-themes.png",
