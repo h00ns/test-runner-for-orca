@@ -155,17 +155,23 @@ export function findOnPath(name: string, env: NodeJS.ProcessEnv = process.env): 
 
 export type NodeCommand = { program: string; env: NodeJS.ProcessEnv }
 
-/** The user's `node`, else the runtime this worker runs on (Electron as Node when needed). */
-export function resolveNode(env: NodeJS.ProcessEnv = process.env): NodeCommand {
+/** The user's `node`; only without one, the runtime this worker runs on (Orca's Electron, as
+ *  Node). Why the user's first: Orca's Electron cannot load unsigned native addons (rolldown,
+ *  esbuild, swc), which most test toolchains need. Orca sets ELECTRON_RUN_AS_NODE for every
+ *  plugin worker, so it is removed here unless Electron is really what runs the tests: a child
+ *  that inherits it turns any Electron app the tests start into plain Node. */
+export function resolveNode(env: NodeJS.ProcessEnv = process.env, execPath: string = process.execPath): NodeCommand {
   const PATH = candidateBinDirs(env).join(delimiter)
+  const { ELECTRON_RUN_AS_NODE: _electron, ...rest } = env
   const found = findOnPath('node', env)
   if (found) {
-    return { program: found, env: { ...env, PATH: [dirname(found), PATH].join(delimiter) } }
+    return { program: found, env: { ...rest, PATH: [dirname(found), PATH].join(delimiter) } }
   }
-  return { program: process.execPath, env: { ...env, PATH, ELECTRON_RUN_AS_NODE: '1' } }
+  return { program: execPath, env: { ...rest, PATH, ELECTRON_RUN_AS_NODE: '1' } }
 }
 
-/** The environment every runner gets: a PATH that finds node, java and friends. */
-export function runnerEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  return { ...resolveNode(env).env, CI: '1', FORCE_COLOR: '0', NO_COLOR: '1' }
+/** The program and environment every runner gets: a PATH that finds node, java and friends. */
+export function runnerEnv(env: NodeJS.ProcessEnv = process.env, execPath: string = process.execPath): NodeCommand {
+  const node = resolveNode(env, execPath)
+  return { program: node.program, env: { ...node.env, CI: '1', FORCE_COLOR: '0', NO_COLOR: '1' } }
 }

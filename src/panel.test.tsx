@@ -89,6 +89,9 @@ test('runs the chosen project, follows the worker while it runs, and shows the r
     requests: {
       'tests.state': ready(),
       'tests.run': (input) => {
+        // Orca checks request input with z.json(): an `undefined` value is refused.
+        assert.deepEqual(JSON.parse(JSON.stringify(input)), input, 'request input must be plain JSON')
+        assert.ok(!Object.values(input).includes(undefined), JSON.stringify(Object.keys(input)))
         runs.push(input)
         return ready({ running: { startedAt: Date.now(), scope: 'all', trigger: 'manual', project: 'api', done: 0, total: 1 } })
       }
@@ -96,9 +99,12 @@ test('runs the chosen project, follows the worker while it runs, and shows the r
   })
   const view = await mount(panel, { host })
   assert.ok(view.find({ label: 'No runs yet' }))
+  await view.press({ role: 'button', text: 'Run all' })
+  assert.deepEqual(runs, [{ workspaceKey: 'k1', scope: 'all' }], 'All projects: no project key at all')
+  await view.post('tests.changed', ready())
   await view.select({ type: 'Select' }, 'api')
   await view.press({ role: 'button', text: 'Run all' })
-  assert.deepEqual(runs, [{ workspaceKey: 'k1', scope: 'all', project: 'api' }])
+  assert.deepEqual(runs.at(-1), { workspaceKey: 'k1', scope: 'all', project: 'api' })
   assert.ok(view.find({ role: 'button', text: 'Stop' }))
   assert.ok(view.find({ text: 'api' }))
 

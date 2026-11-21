@@ -73,7 +73,9 @@ function selectedProject(): string | undefined {
 
 const runTests = (scope: 'all' | 'failed') =>
   act(`run:${scope}`, async () => {
-    set(state, await plugin.request('tests.run', { workspaceKey: shownKey(), scope, project: selectedProject() }))
+    const project = selectedProject()
+    // Why not `project: undefined`: Orca checks request input is JSON, and undefined is not.
+    set(state, await plugin.request('tests.run', { workspaceKey: shownKey(), scope, ...(project ? { project } : {}) }))
     return null
   })
 

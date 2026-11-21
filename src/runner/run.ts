@@ -68,11 +68,19 @@ function python(cwd: string): string {
 }
 
 /** The command for one project and mode, and where its report lands. Pure but for lookups. */
-export function invocation(project: ProjectSpec, mode: RunMode, outDir: string): Invocation {
-  const env: NodeJS.ProcessEnv = { ...runnerEnv(), ...project.env }
+export function invocation(
+  project: ProjectSpec,
+  mode: RunMode,
+  outDir: string,
+  baseEnv: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath
+): Invocation {
+  const runtime = runnerEnv(baseEnv, execPath)
+  const env: NodeJS.ProcessEnv = { ...runtime.env, ...project.env }
+  // The node that starts JS runners: the user's, found once with the rest of the environment.
+  const node = runtime.program
   const files = mode.scope === 'files' ? mode.files : []
   const changed = mode.scope === 'related' ? mode.changed : []
-  const node = env.ELECTRON_RUN_AS_NODE ? process.execPath : (findOnPath('node', env) ?? process.execPath)
   switch (project.runner) {
     case 'vitest': {
       const file = join(outDir, 'report.json')

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- Tests now run with your own `node`. 0.2.0 ran JS runners with Orca's built-in Electron inside
+  the plugin worker, which cannot load unsigned native addons, so toolchains such as Vite 8
+  (rolldown), esbuild or swc failed with "Cannot find native binding".
+- Runners no longer inherit `ELECTRON_RUN_AS_NODE` from the plugin worker.
+- "Run all" with "All projects" selected failed with "input: Invalid input".
+
 ## 0.2.0
 
 - Monorepos: one project per package and runner, from `pnpm-workspace.yaml` or package.json
