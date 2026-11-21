@@ -91,7 +91,7 @@ test('runs the chosen project, follows the worker while it runs, and shows the r
       'tests.run': (input) => {
         // Orca checks request input with z.json(): an `undefined` value is refused.
         assert.deepEqual(JSON.parse(JSON.stringify(input)), input, 'request input must be plain JSON')
-        assert.ok(!Object.values(input).includes(undefined), JSON.stringify(Object.keys(input)))
+        assert.ok(!(Object.values(input) as unknown[]).includes(undefined), JSON.stringify(Object.keys(input)))
         runs.push(input)
         return ready({ running: { startedAt: Date.now(), scope: 'all', trigger: 'manual', project: 'api', done: 0, total: 1 } })
       }
