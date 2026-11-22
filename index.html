@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Test Runner for Orca</title>
-  <meta name="description" content="An Orca plugin that runs your workspace's tests from the sidebar, re-runs the related ones when an agent finishes, and sends failures back to the agent." />
+  <meta name="description" content="Run your workspace's tests from Orca's sidebar. When a coding agent finishes a turn, the related tests run, and failures go back to the agent in one click." />
   <meta property="og:title" content="Test Runner for Orca" />
   <meta property="og:description" content="Run tests from Orca's sidebar, and send failures back to the agent." />
   <meta property="og:image" content="https://h00ns.github.io/test-runner-for-orca/assets/cover.png" />
@@ -17,7 +17,6 @@
     <div class="inner">
       <a class="brand" href="./"><img src="assets/icon.png" alt="" />Test Runner for Orca</a>
       <nav>
-        <a href="#install">Install</a>
         <a href="https://orca.dev/plugins/h00ns/test-runner-for-orca">Orca directory</a>
         <a href="https://github.com/h00ns/test-runner-for-orca">GitHub</a>
         <a href="ko/" hreflang="ko" lang="ko">한국어</a>
@@ -25,18 +24,42 @@
     </div>
   </header>
 
+  <section class="hero">
+    <div class="inner">
+      <div>
+        <h1>Test Runner for Orca</h1>
+        <p class="lead">Run your workspace's tests from Orca's sidebar. When a coding agent finishes a turn, the tests related to what it changed run on their own, and a failure goes back to that agent in one click.</p>
+        <div class="actions">
+          <a class="btn primary" href="#quick-start">Get started</a>
+          <a class="btn" href="https://orca.dev/plugins/h00ns/test-runner-for-orca">Open in the Orca directory</a>
+        </div>
+        <div class="meta"><span>Vitest, Jest, Playwright, Cypress, Gradle, Maven, pytest</span><span>Monorepos</span><span>No setup for most repositories</span></div>
+      </div>
+      <figure>
+        <picture>
+          <source srcset="assets/failing-dark.png" media="(prefers-color-scheme: dark)" />
+          <img src="assets/failing-light.png" width="340" alt="The Test Runner panel: three projects, two failures (one new), a flaky test, and buttons that send failures to the agent" />
+        </picture>
+      </figure>
+    </div>
+  </section>
+
   <div class="layout">
     <aside class="toc">
+      <div class="label">On this page</div>
       <ol>
-        <li><a href="#overview">Overview</a></li>
-        <li><a href="#install">Install</a></li>
-        <li class="sub"><a href="#setup-with-agent">Set it up with your agent</a></li>
+        <li><a href="#quick-start">Quick start</a></li>
+        <li><a href="#panel">Using the panel</a></li>
+        <li><a href="#agents">Working with agents</a></li>
+        <li class="sub"><a href="#after-agent">After an agent finishes</a></li>
+        <li class="sub"><a href="#send">Sending failures</a></li>
+        <li class="sub"><a href="#loop">The automatic fix loop</a></li>
+        <li><a href="#how">How tests are run</a></li>
         <li><a href="#runners">Supported runners</a></li>
-        <li><a href="#agent">After an agent finishes</a></li>
-        <li><a href="#auto-fix">Sending failures back</a></li>
-        <li><a href="#monorepos">Monorepos</a></li>
         <li><a href="#config">Configuration</a></li>
+        <li class="sub"><a href="#setup-with-agent">Let your agent write it</a></li>
         <li><a href="#settings">Settings</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
         <li><a href="#screens">Screens</a></li>
         <li><a href="#access">Access</a></li>
         <li><a href="#limitations">Limitations</a></li>
@@ -44,119 +67,217 @@
     </aside>
 
     <main>
-      <section id="overview" class="intro">
-        <div>
-          <h1>Test Runner for Orca</h1>
-          <p class="lead">An <a href="https://orca.dev">Orca</a> plugin that runs your workspace's tests from the right sidebar.</p>
-          <p>When an agent finishes a turn, it re-runs the tests related to what the agent changed. A failure goes back to that agent in one click, as a single line with a command to reproduce it, or on its own if you turn that on.</p>
-          <ul>
-            <li>Vitest, Jest, Playwright, Cypress, Gradle, Maven and pytest, found on their own</li>
-            <li>Monorepos: one project per package and runner</li>
-            <li>Flaky tests are re-run and marked, not sent to the agent</li>
-            <li>New failures are marked, so you can tell what the last change broke</li>
-            <li>The result is in Orca's status bar; pressing it runs the tests</li>
-            <li>English and Korean, following Orca's language</li>
-          </ul>
-        </div>
-        <figure>
-          <picture>
-            <source srcset="assets/failing-dark.png" media="(prefers-color-scheme: dark)" />
-            <img class="shot" src="assets/failing-light.png" width="340" alt="The Test Runner panel: three projects, two failures, one of them new, and a flaky test" />
-          </picture>
-          <figcaption>The panel after an agent finished, in a monorepo.</figcaption>
-        </figure>
-      </section>
-
-      <h2 id="install">Install</h2>
-      <p>In Orca, open <strong>Settings → Plugins</strong>, search for <strong>Test Runner</strong> and install it. Or from a terminal:</p>
+      <h2 id="quick-start">Quick start</h2>
+      <ol class="steps">
+        <li>
+          <h3>Install</h3>
+          <p>In Orca, open <strong>Settings → Plugins</strong>, search for <strong>Test Runner</strong>, install it and approve its access.</p>
+        </li>
+        <li>
+          <h3>Open the panel</h3>
+          <p>Open a workspace, then the <strong>Test Runner</strong> tab in the right sidebar. Press <span class="ui">Run all</span> to check it works.</p>
+        </li>
+        <li>
+          <h3>Let an agent work</h3>
+          <p>When it finishes a turn, the related tests run. If one fails, press <span class="ui">Ask agent to fix</span>.</p>
+        </li>
+      </ol>
+      <p>From a terminal instead:</p>
       <pre><code>orca plugin install h00ns/test-runner-for-orca</code></pre>
-      <p>Orca lists the <a href="#access">access</a> the plugin asks for before it runs. Then open the <strong>Test Runner</strong> tab in the right sidebar. It needs Orca 1.4.260 or later.</p>
-      <h3 id="setup-with-agent">Set it up with your agent</h3>
-      <p>Test Runner finds most projects on its own. If yours needs a config file, or you want one your team can commit, paste this into an agent in the workspace. It writes <a href="#config"><code>.orca-test-runner.json</code></a> and checks that each suite runs. The panel picks the file up the next time it opens, or when you press <strong>Check again</strong>.</p>
-      <div class="copyable"><button class="copy" type="button" data-copy-target="setup-prompt" data-done="Copied" data-fail="Select and copy">Copy</button><pre class="prompt" id="setup-prompt"><code>Set up Test Runner for Orca in this repository by writing .orca-test-runner.json at the repository root.
+      <div class="callout tip">
+        <span class="title">No setup needed for most repositories</span>
+        Test Runner finds your test runner on its own. If the panel says <em>No test runner found</em>, or a run fails because of how your tests are configured, see <a href="#config">Configuration</a>.
+      </div>
 
-1. Find every test suite: Vitest, Jest, Playwright, Cypress, Gradle, Maven or pytest. Look at every package.json (workspace packages too) and its test scripts, the runners' config files, build.gradle(.kts), pom.xml and pyproject.toml.
-2. Add one entry to "projects" per suite, with "name", "root" (its folder relative to the repository root; leave it out for the root) and "runner" (vitest, jest, playwright, cypress, gradle, maven or pytest).
-3. Add "args" only when the suite needs them, such as a config file, taken from how its test script runs it. Never add reporter, output file, watch or coverage options: Test Runner adds its own. Add "env" only for variables the tests need.
-4. Set "autoRun": false for slow suites: browser tests (Playwright, Cypress) and tests that need a running server or database.
-5. Start the file with "$schema": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json" and keep it valid JSON, without comments.
-6. Run each suite once with its runner and those args to check they work. Then tell me what you set up, and anything you left out and why.</code></pre></div>
+      <h2 id="panel">Using the panel</h2>
+      <div class="table">
+        <table>
+          <thead><tr><th>Control</th><th class="wrap">What it does</th></tr></thead>
+          <tbody>
+            <tr><td><span class="ui">Run all</span></td><td class="wrap">Runs every test in the workspace, or in the project picked above it.</td></tr>
+            <tr><td><span class="ui">Re-run failed</span></td><td class="wrap">Runs only the test files that failed last time.</td></tr>
+            <tr><td><span class="ui">Stop</span></td><td class="wrap">Stops the run in progress.</td></tr>
+            <tr><td><span class="ui">All projects ⌄</span></td><td class="wrap">Shown in a monorepo: pick one package to run only that one.</td></tr>
+            <tr><td><span class="ui">Run when an agent finishes</span></td><td class="wrap">Turns automatic runs on or off.</td></tr>
+            <tr><td><span class="ui">Send new failures back to the agent</span></td><td class="wrap">Turns the <a href="#loop">automatic fix loop</a> on or off.</td></tr>
+            <tr><td><span class="ui">Ask agent to fix</span></td><td class="wrap">Sends one failure to the workspace's agent.</td></tr>
+            <tr><td><span class="ui">Fix new only</span> <span class="ui">Ask agent to fix all</span></td><td class="wrap">Sends only the new failures, or all of them.</td></tr>
+            <tr><td><span class="ui">Open file</span></td><td class="wrap">Opens the failing test file in an editor tab.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each failure shows its test name, file and line, and the error without the runner's own stack frames. Badges mark what deserves attention:</p>
+      <div class="table">
+        <table>
+          <tbody>
+            <tr><td><span class="badge red">2 failed</span></td><td class="wrap">Tests that fail now.</td></tr>
+            <tr><td><span class="badge orange">new</span></td><td class="wrap">Was passing in the run before, so the latest change most likely broke it.</td></tr>
+            <tr><td><span class="badge amber">flaky</span></td><td class="wrap">Failed, then passed when run again. Probably not the change's fault, and never sent to an agent.</td></tr>
+            <tr><td><span class="badge green">41 passed</span></td><td class="wrap">Tests that pass.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The result also shows in Orca's <strong>status bar</strong>, for example <em>2 failed</em>. Pressing it runs the tests.</p>
+
+      <h2 id="agents">Working with agents</h2>
+      <h3 id="after-agent">After an agent finishes</h3>
+      <ol class="flow">
+        <li><div>If the code is the same as at the last run, nothing runs. An agent that only answered a question costs nothing.</div></li>
+        <li><div>Otherwise, the files changed since the last run pick the tests. Vitest and Jest run only the tests that import them; other runners run their whole suite when their folder changed. Browser tests (Playwright, Cypress) are left out unless you <a href="#config">opt them in</a>.</div></li>
+        <li><div>Failures are re-run once to separate <span class="badge amber">flaky</span> tests, then compared with the run before to mark <span class="badge orange">new</span> ones.</div></li>
+        <li><div>A notification tells you when tests start failing, and when they pass again.</div></li>
+      </ol>
+      <p class="small">The first automatic run in a workspace runs everything, because there is no earlier run to compare with. So does a run after a file was deleted or renamed, or in a folder outside git. A run that covers part of the suite keeps the earlier results for the rest; the panel then says, for example, <em>12 tests ran; earlier results kept for the rest</em>.</p>
+
+      <h3 id="send">Sending failures to the agent</h3>
+      <p><span class="ui">Ask agent to fix</span> types the failure into the workspace's agent as one line, with a command to reproduce it:</p>
+      <pre class="wrap"><code>The test "cart › applies the coupon once" in apps/web/src/cart.test.ts:42 is failing. Error: AssertionError: expected 8000 to be 9000 … Reproduce with: cd apps/web &amp;&amp; npx vitest run src/cart.test.ts -t "applies the coupon once" Fix the code (or the test, if the test itself is wrong) and re-run it until it passes.</code></pre>
+      <ul>
+        <li>It goes to an agent that is idle: finished, or waiting for input.</li>
+        <li>It never types into an agent that is working or waiting for permission. You get <em>The agent in this workspace is busy</em> instead.</li>
+        <li>With no agent open, it starts the one chosen in <a href="#settings">settings</a> (Claude Code by default).</li>
+      </ul>
+
+      <h3 id="loop">The automatic fix loop</h3>
+      <p>Off by default. With <span class="ui">Send new failures back to the agent</span> on, each automatic run sends the failures the agent caused back to the agent that just finished. It fixes them, finishes, and the tests run again. After 3 rounds (configurable) it stops and tells you.</p>
+      <p>It only answers the agent that finished, skips a turn you interrupted, and never starts an agent on its own. Failures that were there before the agent started are left alone.</p>
+
+      <h2 id="how">How tests are run</h2>
+      <p>Test Runner does <strong>not</strong> run your <code>npm test</code> script. It starts each test runner directly, with the options it needs to read the results:</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Runner</th><th class="wrap">Command it runs</th></tr></thead>
+          <tbody>
+            <tr><td>Vitest</td><td class="wrap"><code>node node_modules/vitest/vitest.mjs run --reporter=json --outputFile=… --passWithNoTests --coverage.enabled=false</code></td></tr>
+            <tr><td>Jest</td><td class="wrap"><code>node node_modules/jest/bin/jest.js --json --outputFile=… --ci --passWithNoTests --forceExit --coverage=false</code></td></tr>
+            <tr><td>Playwright</td><td class="wrap"><code>node node_modules/@playwright/test/cli.js test --reporter=junit --pass-with-no-tests</code></td></tr>
+            <tr><td>Cypress</td><td class="wrap"><code>node node_modules/cypress/bin/cypress run --reporter junit</code></td></tr>
+            <tr><td>Gradle</td><td class="wrap"><code>./gradlew test --continue --console=plain</code> (or <code>gradle</code>)</td></tr>
+            <tr><td>Maven</td><td class="wrap"><code>./mvnw test -fae -B</code> (or <code>mvn</code>)</td></tr>
+            <tr><td>pytest</td><td class="wrap"><code>.venv/bin/python -m pytest --junitxml=… -o junit_family=xunit1 -q</code> (or <code>python3</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Why not the script:</p>
+      <ul>
+        <li><strong>It reads a report.</strong> Failures come from a JSON or JUnit XML report, so the panel can show each one's file, line and error. A script's console output can't be read reliably.</li>
+        <li><strong>It runs part of the suite.</strong> Related tests (<code>vitest related …</code>, <code>jest --findRelatedTests …</code>) and failed files only work when it passes the arguments itself.</li>
+        <li><strong>It always finishes.</strong> A script in watch mode would never end.</li>
+        <li><strong>It works with any package manager</strong>: npm, pnpm and yarn alike.</li>
+      </ul>
+      <p>It reads your <code>test</code> script only to tell which runner a package uses.</p>
+      <div class="callout warn">
+        <span class="title">If your test script passes options</span>
+        For example <code>"test": "vitest run --config vitest.unit.config.ts"</code>: those options are not used. Copy them into <code>args</code> in <a href="#config"><code>.orca-test-runner.json</code></a>, or let <a href="#setup-with-agent">your agent do it</a>.
+      </div>
+      <p class="small">Runs use your own <code>node</code> (from your PATH, Homebrew, Volta, mise or asdf), with <code>CI=1</code> and colours off. Coverage is off, so coverage thresholds don't fail a run of part of the suite.</p>
 
       <h2 id="runners">Supported runners</h2>
-      <table>
-        <thead>
-          <tr><th>Runner</th><th>Found from</th><th>After an agent finishes</th><th>Re-run failed</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>Vitest</td><td><code>vitest</code> in package.json, <code>vitest.config.*</code></td><td>related tests</td><td>files</td></tr>
-          <tr><td>Jest</td><td><code>jest</code> in package.json, <code>jest.config.*</code></td><td>related tests</td><td>files</td></tr>
-          <tr><td>Playwright</td><td><code>@playwright/test</code>, <code>playwright.config.*</code></td><td>off by default</td><td>files</td></tr>
-          <tr><td>Cypress</td><td><code>cypress</code>, <code>cypress.config.*</code></td><td>off by default</td><td>files</td></tr>
-          <tr><td>Gradle</td><td><code>build.gradle(.kts)</code>, <code>settings.gradle(.kts)</code></td><td>whole suite</td><td>whole suite</td></tr>
-          <tr><td>Maven</td><td><code>pom.xml</code></td><td>whole suite</td><td>whole suite</td></tr>
-          <tr><td>pytest</td><td><code>pytest.ini</code>, <code>[tool.pytest…]</code> in pyproject.toml, <code>conftest.py</code></td><td>whole suite</td><td>files</td></tr>
-        </tbody>
-      </table>
-      <p>JS runners start from their own package, so npm, pnpm and yarn all work. Jest runs with <code>--forceExit</code>, so a test that leaves a server open does not hold the run. Coverage is turned off, so coverage thresholds do not fail a run of part of the suite. Gradle and Maven use <code>./gradlew</code> and <code>./mvnw</code> when the project has them; pytest uses <code>.venv</code> or <code>venv</code>. Their results come from the JUnit XML reports they write.</p>
-      <p class="note">Playwright 1.49 hangs on Node 24 even outside Orca; 1.65 works.</p>
-
-      <h2 id="agent">After an agent finishes</h2>
-      <ol>
-        <li>Orca reports that an agent in a workspace finished a turn.</li>
-        <li>If the code is the same as at the last run, compared by content and not just <code>git status</code>, nothing runs.</li>
-        <li>Otherwise, the files changed since that run pick the tests. Vitest and Jest run only the tests that import them; other runners run their suite when their folder changed. Browser tests are left out unless the configuration opts them in. The first automatic run in a workspace, a deleted or renamed file, or a folder outside git runs everything instead.</li>
-        <li>A run that covers part of the suite keeps the earlier results for the rest, so a failure it did not re-run is still shown.</li>
-        <li>Failures are re-run once. Those that pass are marked <strong>flaky</strong>. The rest are compared with the run before, and those that were passing are marked <strong>new</strong>.</li>
-        <li>A notification says when tests start failing, and when they pass again.</li>
-      </ol>
-
-      <h2 id="auto-fix">Sending failures back</h2>
-      <p><strong>Ask agent to fix</strong> types a failure into the workspace's idle agent. <strong>Fix new only</strong> and <strong>Ask agent to fix all</strong> send several at once. If no agent is open, the one chosen in settings is started with the failure. An agent that is working, or waiting for permission, is never typed into.</p>
-      <p>The agent receives one line:</p>
-      <pre><code>The test "cart › applies the coupon once" in apps/web/src/cart.test.ts:42 is failing. Error: AssertionError: expected 8000 to be 9000 … Reproduce with: cd apps/web &amp;&amp; npx vitest run src/cart.test.ts -t "applies the coupon once" Fix the code (or the test, if the test itself is wrong) and re-run it until it passes.</code></pre>
-      <p>With <strong>Send new failures back to the agent</strong> on, this happens by itself after each automatic run: the failures the agent's turns caused go back to the agent that just finished, which fixes them and triggers the next run. It stops after the number of rounds in settings (3 by default) and tells you. It skips a turn you interrupted, never types into another agent, and never starts one.</p>
-
-      <h2 id="monorepos">Monorepos</h2>
-      <p>Test Runner reads <code>pnpm-workspace.yaml</code> or the <code>workspaces</code> field of package.json and makes one project per package and runner. A root that only installs the runner for its packages runs nothing itself. A root with its own configuration, such as a Vitest workspace or Jest <code>projects</code>, runs its packages for them. The panel can run one project at a time.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Runner</th><th class="wrap">Found from</th><th>After an agent finishes</th><th>Re-run failed</th></tr></thead>
+          <tbody>
+            <tr><td>Vitest</td><td class="wrap"><code>vitest</code> in package.json, <code>vitest.config.*</code></td><td>related tests</td><td>those files</td></tr>
+            <tr><td>Jest</td><td class="wrap"><code>jest</code> in package.json, <code>jest.config.*</code></td><td>related tests</td><td>those files</td></tr>
+            <tr><td>Playwright</td><td class="wrap"><code>@playwright/test</code>, <code>playwright.config.*</code></td><td>off by default</td><td>those files</td></tr>
+            <tr><td>Cypress</td><td class="wrap"><code>cypress</code>, <code>cypress.config.*</code></td><td>off by default</td><td>those files</td></tr>
+            <tr><td>Gradle</td><td class="wrap"><code>build.gradle(.kts)</code>, <code>settings.gradle(.kts)</code></td><td>whole suite</td><td>whole suite</td></tr>
+            <tr><td>Maven</td><td class="wrap"><code>pom.xml</code></td><td>whole suite</td><td>whole suite</td></tr>
+            <tr><td>pytest</td><td class="wrap"><code>pytest.ini</code>, <code>[tool.pytest…]</code> in pyproject.toml, <code>conftest.py</code></td><td>whole suite</td><td>those files</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The runner has to be installed: in <code>node_modules</code>, as a Gradle or Maven wrapper, or in a virtualenv.</p>
+      <p><strong>Monorepos.</strong> Test Runner reads <code>pnpm-workspace.yaml</code> or the <code>workspaces</code> field of package.json and makes one project per package and runner. A root that only installs the runner for its packages runs nothing itself. A root config that lists the packages (a Vitest workspace or <code>projects</code>, Jest <code>projects</code>) runs them for them.</p>
 
       <h2 id="config">Configuration</h2>
-      <p><a href="#setup-with-agent">Your agent can write it for you.</a> Detection covers most repositories. For the rest, add <code>.orca-test-runner.json</code> to the workspace root and commit it, so your team shares it.</p>
+      <p><code>.orca-test-runner.json</code> in the workspace root tells Test Runner exactly what to run. You need it only when detection is not enough: options in your test script, an unusual layout, environment variables, or browser tests you want run after each agent turn. Commit it, so your team shares it.</p>
       <pre><code>{
   "$schema": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json",
-  "autoRunScope": "related",
-  "env": { "TZ": "UTC" },
   "projects": [
     { "name": "web", "root": "apps/web", "runner": "vitest", "args": ["--config", "vitest.unit.config.ts"] },
     { "name": "api", "root": "services/api", "runner": "gradle" },
     { "name": "e2e", "root": "apps/web", "runner": "playwright", "autoRun": false }
   ]
 }</code></pre>
-      <table>
-        <thead><tr><th>Key</th><th>Meaning</th></tr></thead>
-        <tbody>
-          <tr><td><code>projects</code></td><td>The projects to run, instead of detecting them. Each has a <code>root</code> folder (default: the workspace root), and optionally <code>runner</code> (detected when left out), <code>name</code>, <code>args</code> added to the runner's command, <code>env</code>, and <code>autoRun</code> (default: true, false for browser tests).</td></tr>
-          <tr><td><code>ignore</code></td><td>Folders to leave out of detection, when <code>projects</code> is not given.</td></tr>
-          <tr><td><code>autoRunScope</code></td><td><code>related</code> or <code>all</code>: what runs after an agent finishes, for this workspace.</td></tr>
-          <tr><td><code>env</code></td><td>Environment variables for every project.</td></tr>
-        </tbody>
-      </table>
-      <p>If the file has a problem, the panel says what and where.</p>
+      <div class="table">
+        <table>
+          <thead><tr><th>Key</th><th class="wrap">Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>projects</code></td><td class="wrap">What to run, instead of detecting it. Each entry: <code>root</code> (folder from the workspace root; default the root), <code>runner</code> (detected when left out), <code>name</code>, <code>args</code> (added to the <a href="#how">command</a>), <code>env</code>, <code>autoRun</code> (run after an agent finishes; default true, false for browser tests).</td></tr>
+            <tr><td><code>ignore</code></td><td class="wrap">Folders to leave out of detection, when there is no <code>projects</code>.</td></tr>
+            <tr><td><code>autoRunScope</code></td><td class="wrap"><code>related</code> or <code>all</code>: what runs after an agent finishes, in this workspace.</td></tr>
+            <tr><td><code>env</code></td><td class="wrap">Environment variables for every project.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Don't put reporter, output file, watch or coverage options in <code>args</code>: Test Runner adds its own. If the file has a mistake, the panel says what and where.</p>
+
+      <h3 id="setup-with-agent">Let your agent write it</h3>
+      <p>Paste this into an agent in the workspace. It writes the file and checks that each suite runs. The panel reads the file the next time it opens.</p>
+      <pre class="wrap"><code>Set up Test Runner for Orca in this repository by writing .orca-test-runner.json at the repository root.
+
+1. Find every test suite: Vitest, Jest, Playwright, Cypress, Gradle, Maven or pytest. Look at every package.json (workspace packages too) and its test scripts, the runners' config files, build.gradle(.kts), pom.xml and pyproject.toml.
+2. Add one entry to "projects" per suite, with "name", "root" (its folder relative to the repository root; leave it out for the root) and "runner" (vitest, jest, playwright, cypress, gradle, maven or pytest).
+3. Add "args" only when the suite needs them, such as a config file, taken from how its test script runs it. Never add reporter, output file, watch or coverage options: Test Runner adds its own. Add "env" only for variables the tests need.
+4. Set "autoRun": false for slow suites: browser tests (Playwright, Cypress) and tests that need a running server or database.
+5. Start the file with "$schema": "https://raw.githubusercontent.com/h00ns/test-runner-for-orca/main/schema/orca-test-runner.schema.json" and keep it valid JSON, without comments.
+6. Run each suite once with its runner and those args to check they work. Then tell me what you set up, and anything you left out and why.</code></pre>
 
       <h2 id="settings">Settings</h2>
-      <p>Settings → Plugins → Test Runner.</p>
-      <table>
-        <thead><tr><th>Setting</th><th>Default</th></tr></thead>
-        <tbody>
-          <tr><td>Run tests when an agent finishes</td><td>on</td></tr>
-          <tr><td>What runs after an agent finishes</td><td>related tests</td></tr>
-          <tr><td>Re-run failures once to catch flaky tests</td><td>on</td></tr>
-          <tr><td>Send new failures back to the agent automatically</td><td>off</td></tr>
-          <tr><td>Rounds before automatic sending stops</td><td>3</td></tr>
-          <tr><td>Notify after automatic runs</td><td>on</td></tr>
-          <tr><td>Agent to start, when you ask for a fix and none is open</td><td>Claude Code</td></tr>
-          <tr><td>Timeout per project</td><td>10 minutes</td></tr>
-        </tbody>
-      </table>
+      <p><strong>Settings → Plugins → Test Runner</strong></p>
+      <div class="table">
+        <table>
+          <thead><tr><th class="wrap">Setting</th><th>Default</th></tr></thead>
+          <tbody>
+            <tr><td class="wrap">Run tests when an agent finishes</td><td>on</td></tr>
+            <tr><td class="wrap">What runs after an agent finishes</td><td>related tests</td></tr>
+            <tr><td class="wrap">Re-run failures once to catch flaky tests</td><td>on</td></tr>
+            <tr><td class="wrap">Send new failures back to the agent automatically</td><td>off</td></tr>
+            <tr><td class="wrap">Rounds before automatic sending stops</td><td>3</td></tr>
+            <tr><td class="wrap">Notify after automatic runs</td><td>on</td></tr>
+            <tr><td class="wrap">Agent to start, when you ask for a fix and none is open</td><td>Claude Code</td></tr>
+            <tr><td class="wrap">Timeout per project</td><td>10 minutes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <details>
+        <summary>"No test runner found"</summary>
+        <div><ul>
+          <li>Install dependencies first (<code>npm install</code>, <code>pnpm install</code>…): the runner must be in <code>node_modules</code>.</li>
+          <li>The runner must be named in a package.json (<code>vitest</code>, <code>jest</code>…) or have its config file. For anything else, add <a href="#config"><code>.orca-test-runner.json</code></a>.</li>
+        </ul></div>
+      </details>
+      <details>
+        <summary>"web: vitest did not finish", with the runner's output</summary>
+        <div><ul>
+          <li>The runner started but failed before reporting. The output under it says why: often a config file, an alias or an environment variable your test script sets. Move those into <code>args</code> or <code>env</code> in <a href="#config"><code>.orca-test-runner.json</code></a>.</li>
+          <li><em>Cannot find native binding</em> (rolldown, esbuild, swc): update Test Runner to 0.2.1 or later.</li>
+          <li><em>exited with code 1 although no test failed</em>: the runner failed after the tests, for example on an unhandled error. The output shows it.</li>
+        </ul></div>
+      </details>
+      <details>
+        <summary>Tests don't run after the agent finishes</summary>
+        <div><ul>
+          <li>Check <span class="ui">Run when an agent finishes</span> is on.</li>
+          <li>They run only when files changed. <em>No tests ran</em> after a turn means no test imports the changed files.</li>
+          <li>Browser tests are left out by default.</li>
+        </ul></div>
+      </details>
+      <details>
+        <summary>Playwright never finishes</summary>
+        <div><p>Playwright 1.49 hangs on Node 24, also outside Orca. Update Playwright.</p></div>
+      </details>
+      <details>
+        <summary>The panel says "Remote workspace"</summary>
+        <div><p>SSH workspaces are not supported yet. See <a href="#limitations">Limitations</a>.</p></div>
+      </details>
+      <details>
+        <summary>Where are the logs?</summary>
+        <div><pre><code>orca plugin logs h00ns.test-runner</code></pre><p>They show what Test Runner ran and why. Include them when you <a href="https://github.com/h00ns/test-runner-for-orca/issues/new/choose">report a problem</a>.</p></div>
+      </details>
 
       <h2 id="screens">Screens</h2>
       <p>Every image is the real panel, drawn by Orca.</p>
@@ -173,16 +294,16 @@
       <ul>
         <li>read workspaces, their terminals and agent status</li>
         <li>open files in an editor tab and focus terminals</li>
-        <li>type into agent terminals and start agents: when you press a button, or with automatic sending on</li>
+        <li>type into agent terminals and start agents: when you press a button, or with the fix loop on</li>
         <li>show notifications and a status bar item</li>
-        <li>keep its own storage (the last run per workspace) and settings</li>
+        <li>keep its own storage (the last results per workspace) and settings</li>
       </ul>
       <p>It makes no network requests and collects no data.</p>
 
       <h2 id="limitations">Limitations</h2>
       <ul>
         <li>Local workspaces only. SSH workspaces need a way for plugins to run processes on the remote host, which Orca does not offer yet.</li>
-        <li><strong>Open file</strong> opens the file at the top: Orca's API cannot open a file at a line yet.</li>
+        <li><span class="ui">Open file</span> opens the file at the top: Orca's API cannot open a file at a line yet.</li>
         <li>Only Vitest and Jest pick related tests. Other runners run their whole suite.</li>
       </ul>
       <p>Found a problem, or a runner it should support? <a href="https://github.com/h00ns/test-runner-for-orca/issues/new/choose">Open an issue</a>.</p>
@@ -195,21 +316,7 @@
       <span>A community plugin, not made by the Orca team.</span>
     </div>
   </footer>
-  <script>
-    // Copy buttons: the only script on the page.
-    for (const button of document.querySelectorAll('[data-copy-target]')) {
-      const label = button.textContent
-      button.addEventListener('click', async () => {
-        const text = document.getElementById(button.dataset.copyTarget).innerText
-        try {
-          await navigator.clipboard.writeText(text)
-          button.textContent = button.dataset.done
-        } catch {
-          button.textContent = button.dataset.fail
-        }
-        setTimeout(() => (button.textContent = label), 1500)
-      })
-    }
-  </script>
+
+  <script src="site.js"></script>
 </body>
 </html>
