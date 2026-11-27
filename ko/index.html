@@ -113,6 +113,7 @@
             <tr><td><span class="badge red">2개 실패</span></td><td class="wrap">지금 실패하는 테스트예요.</td></tr>
             <tr><td><span class="badge orange">새 실패</span></td><td class="wrap">직전 실행에서는 통과했어요. 마지막 변경이 깨뜨렸을 가능성이 커요.</td></tr>
             <tr><td><span class="badge amber">불안정</span></td><td class="wrap">실패했다가 다시 실행하니 통과했어요. 변경 탓이 아닐 가능성이 크고, 에이전트에게 보내지 않아요.</td></tr>
+            <tr><td><span class="badge gray">서버 꺼짐</span></td><td class="wrap">서버나 DB에 연결하지 못했어요(connection refused). 앱을 먼저 실행하세요(예: <code>pnpm dev</code>). 에이전트에게 보내지 않아요.</td></tr>
             <tr><td><span class="badge green">41개 통과</span></td><td class="wrap">통과한 테스트예요.</td></tr>
           </tbody>
         </table>
@@ -135,7 +136,7 @@
       <ul>
         <li>쉬고 있는(작업을 끝냈거나 입력을 기다리는) 에이전트에게 보내요.</li>
         <li>작업 중이거나 권한 승인을 기다리는 에이전트에게는 절대 입력하지 않고, <em>에이전트가 작업 중</em>이라고 알려줘요.</li>
-        <li>열린 에이전트가 없으면 <a href="#settings">설정</a>에서 고른 에이전트(기본 Claude Code)를 띄워서 맡겨요.</li>
+        <li>열린 에이전트가 없으면 <a href="#settings">설정</a>에서 고른 에이전트(기본 Claude Code)를 띄우고, 준비될 때까지 기다린 뒤 실패를 입력해요.</li>
       </ul>
 
       <h3 id="loop">자동 수정 루프</h3>
@@ -170,7 +171,7 @@
         <span class="title">test 스크립트에 옵션이 있다면</span>
         예를 들어 <code>"test": "vitest run --config vitest.unit.config.ts"</code>처럼요. 이 옵션은 자동으로 반영되지 않아요. <a href="#config"><code>.orca-test-runner.json</code></a>의 <code>args</code>로 옮기거나, <a href="#setup-with-agent">에이전트에게 맡기세요</a>.
       </div>
-      <p class="small">러너는 사용자의 <code>node</code>(PATH, Homebrew, Volta, mise, asdf)로 실행하고, <code>CI=1</code>과 색상 끄기를 설정해요. 커버리지는 꺼서, 일부만 실행할 때 커버리지 기준 때문에 실패하지 않아요.</p>
+      <p class="small">러너는 사용자의 <code>node</code>(PATH, Homebrew, Volta, mise, asdf)로 색상을 끄고 실행해요. 커버리지는 꺼서, 일부만 실행할 때 커버리지 기준 때문에 실패하지 않아요. <code>CI</code>는 설정하지 않아서, <code>reuseExistingServer: !process.env.CI</code>를 쓰는 Playwright 설정도 이미 떠 있는 개발 서버를 그대로 써요.</p>
 
       <h2 id="runners">지원하는 러너</h2>
       <div class="table">
@@ -257,6 +258,10 @@
           <li><em>Cannot find native binding</em>(rolldown, esbuild, swc): Test Runner를 0.2.1 이상으로 업데이트하세요.</li>
           <li><em>exited with code 1 although no test failed</em>: 테스트가 끝난 뒤 러너가 실패했어요(예: 처리되지 않은 에러). 출력에 내용이 있어요.</li>
         </ul></div>
+      </details>
+      <details>
+        <summary>"서버 꺼짐"으로 실패해요 (connection refused)</summary>
+        <div><p>테스트에 앱, API, DB가 떠 있어야 하는데 꺼져 있어요. 먼저 실행한 뒤(예: <code>pnpm dev</code>) 다시 돌리거나, Playwright 설정에 <code>webServer</code>를 넣어 Playwright가 앱을 직접 띄우게 하세요.</p></div>
       </details>
       <details>
         <summary>에이전트가 끝나도 테스트가 돌지 않아요</summary>

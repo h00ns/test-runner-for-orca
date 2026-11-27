@@ -113,6 +113,7 @@
             <tr><td><span class="badge red">2 failed</span></td><td class="wrap">Tests that fail now.</td></tr>
             <tr><td><span class="badge orange">new</span></td><td class="wrap">Was passing in the run before, so the latest change most likely broke it.</td></tr>
             <tr><td><span class="badge amber">flaky</span></td><td class="wrap">Failed, then passed when run again. Probably not the change's fault, and never sent to an agent.</td></tr>
+            <tr><td><span class="badge gray">server not running</span></td><td class="wrap">Could not connect to a server or database (connection refused). Start the app first, for example <code>pnpm dev</code>. Never sent to an agent.</td></tr>
             <tr><td><span class="badge green">41 passed</span></td><td class="wrap">Tests that pass.</td></tr>
           </tbody>
         </table>
@@ -135,7 +136,7 @@
       <ul>
         <li>It goes to an agent that is idle: finished, or waiting for input.</li>
         <li>It never types into an agent that is working or waiting for permission. You get <em>The agent in this workspace is busy</em> instead.</li>
-        <li>With no agent open, it starts the one chosen in <a href="#settings">settings</a> (Claude Code by default).</li>
+        <li>With no agent open, it starts the one chosen in <a href="#settings">settings</a> (Claude Code by default), waits until it is ready, then types the failure.</li>
       </ul>
 
       <h3 id="loop">The automatic fix loop</h3>
@@ -170,7 +171,7 @@
         <span class="title">If your test script passes options</span>
         For example <code>"test": "vitest run --config vitest.unit.config.ts"</code>: those options are not used. Copy them into <code>args</code> in <a href="#config"><code>.orca-test-runner.json</code></a>, or let <a href="#setup-with-agent">your agent do it</a>.
       </div>
-      <p class="small">Runs use your own <code>node</code> (from your PATH, Homebrew, Volta, mise or asdf), with <code>CI=1</code> and colours off. Coverage is off, so coverage thresholds don't fail a run of part of the suite.</p>
+      <p class="small">Runs use your own <code>node</code> (from your PATH, Homebrew, Volta, mise or asdf), with colours off. Coverage is off, so coverage thresholds don't fail a run of part of the suite. <code>CI</code> is not set, so a Playwright config with <code>reuseExistingServer: !process.env.CI</code> still uses the dev server you already run.</p>
 
       <h2 id="runners">Supported runners</h2>
       <div class="table">
@@ -257,6 +258,10 @@
           <li><em>Cannot find native binding</em> (rolldown, esbuild, swc): update Test Runner to 0.2.1 or later.</li>
           <li><em>exited with code 1 although no test failed</em>: the runner failed after the tests, for example on an unhandled error. The output shows it.</li>
         </ul></div>
+      </details>
+      <details>
+        <summary>Tests fail with "server not running" (connection refused)</summary>
+        <div><p>The tests need your app, an API or a database running, and it isn't. Start it (for example <code>pnpm dev</code>) and run them again, or give Playwright a <code>webServer</code> in its config so it starts the app itself.</p></div>
       </details>
       <details>
         <summary>Tests don't run after the agent finishes</summary>
