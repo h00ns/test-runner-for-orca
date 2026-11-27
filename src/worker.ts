@@ -6,7 +6,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import type { OrcaWorkerApi } from 'orca/worker'
 import { promptForFailures, type PromptProject } from './agent-prompt.ts'
-import { localeOf, strings, type Strings } from './i18n.ts'
+import { AGENT_NAMES, localeOf, strings, type Strings } from './i18n.ts'
 import type {
   AskAgentResult,
   Locale,
@@ -70,6 +70,9 @@ const MAX_PAYLOAD_BYTES = 200_000
 const MAX_RELATED_FILES = 300
 const MAX_RETRY_FILES = 20
 const MAX_RUN_FAILURES = 100
+const MAX_TRACKED_FILES = 3000
+/** How long a started agent may take to be ready for its prompt. */
+const LAUNCH_READY_MS = 60_000
 const LAUNCHABLE_AGENTS = new Set(['claude', 'codex', 'gemini', 'opencode', 'cursor', 'copilot'])
 const STATUS_ITEM = 'tests'
 
@@ -105,6 +108,21 @@ export function fitRun(run: TestRun | null, budget = MAX_PAYLOAD_BYTES): TestRun
     }
   }
   return next
+}
+
+/** What the panel gets of a run: everything but the per-file counts kept for merging. */
+function forPanel(run: TestRun | null): TestRun | null {
+  return run ? { ...run, projects: run.projects.map(({ files: _files, ...project }) => project) } : null
+}
+
+/** The address a failure could not connect to, when the test needed a running server or
+ *  database that is not up (no code change fixes that); null otherwise. */
+export function unreachableTarget(message: string): string | null {
+  if (!/ERR_CONNECTION_REFUSED|ECONNREFUSED|ERR_CONNECTION_RESET|connect ECONNREFUSED/.test(message)) {
+    return null
+  }
+  const at = /(?:ERR_CONNECTION_REFUSED at |ECONNREFUSED )((?:https?:\/\/)?[\w.\-\[\]:]+:\d+)/.exec(message)
+  return at?.[1] ?? 'the server'
 }
 
 /** A failure id without the `#2` a repeated test name gets, which depends on run order. */
@@ -173,17 +191,32 @@ export function mergeRun(
     }
     const reached = new Set(outcome.ranFiles)
     const kept = beforeFailures.filter((f) => !reached.has(f.file))
-    const replaced = beforeFailures.filter((f) => reached.has(f.file) && !f.flaky).length
     const merged = [...kept, ...outcome.failures]
-    const nowFailing = outcome.failures.filter((f) => !f.flaky).length
+    const flakyNow = merged.filter((f) => f.flaky).length
+    if (!before.files || !outcome.result.files) {
+      // No per-file counts (a result stored by an older version): this run's counts stand.
+      results.push({ ...outcome.result, failed: merged.filter((f) => !f.flaky).length, flaky: flakyNow })
+      failures.push(...merged)
+      continue
+    }
+    // Exact: the files this run reached take its counts; every other file keeps its own.
+    const files: Record<string, [number, number, number]> = { ...before.files }
+    for (const file of reached) {
+      delete files[file]
+    }
+    Object.assign(files, outcome.result.files)
+    const totals = Object.values(files).reduce((t, [p, f, k]) => [t[0] + p, t[1] + f, t[2] + k], [0, 0, 0])
     results.push({
       ...before,
       name: outcome.result.name,
       runner: outcome.result.runner,
-      passed: before.passed + Math.max(0, replaced - nowFailing),
-      failed: merged.filter((f) => !f.flaky).length,
-      flaky: merged.filter((f) => f.flaky).length,
-      error: null
+      passed: totals[0],
+      // A flaky test failed in its file's counts; it is told apart, not counted twice.
+      failed: Math.max(0, totals[1] - flakyNow),
+      skipped: totals[2],
+      flaky: flakyNow,
+      error: null,
+      files
     })
     failures.push(...merged)
   }
@@ -303,7 +336,7 @@ export default function activate(orca: OrcaWorkerApi): void {
   async function byKey(key: string): Promise<Workspace> {
     const workspace = await findWorkspace((row) => workspaceKey(row.id) === key)
     if (!workspace) {
-      throw hostError('invalid_params', 'That workspace is no longer open.')
+      throw hostError('invalid_params', t().errWorkspaceGone)
     }
     return workspace
   }
@@ -383,7 +416,7 @@ export default function activate(orca: OrcaWorkerApi): void {
             total: running.total
           }
         : null,
-      lastRun: workspace ? fitRun((await load(workspace.id)).run) : null,
+      lastRun: workspace ? forPanel(fitRun((await load(workspace.id)).run)) : null,
       autoRun: await setting('autoRunWhenAgentFinishes', true),
       autoFix: {
         enabled: await setting('autoFix', false),
@@ -495,7 +528,8 @@ export default function activate(orca: OrcaWorkerApi): void {
     const report = first.report
     let failures: TestFailure[] = report.failures.map((f) => {
       const id = `${project.id}|${f.id}`
-      return { ...f, id, project: project.id, isNew: before !== null && !before.has(id), flaky: false }
+      const unreachable = unreachableTarget(f.message)
+      return { ...f, id, project: project.id, isNew: !unreachable && before !== null && !before.has(id), flaky: false, unreachable }
     })
     const files = [...new Set(failures.map((f) => f.file))]
     if (
@@ -520,8 +554,16 @@ export default function activate(orca: OrcaWorkerApi): void {
     return {
       outcome: {
         project,
-        ranFiles: mode.scope === 'all' ? null : report.files,
-        result: { ...base, passed: report.passed, failed: report.failed - flaky, skipped: report.skipped, flaky },
+        ranFiles: mode.scope === 'all' ? null : Object.keys(report.files),
+        result: {
+          ...base,
+          passed: report.passed,
+          failed: report.failed - flaky,
+          skipped: report.skipped,
+          flaky,
+          // Past this many files the counts would crowd storage; partial runs then use run totals.
+          ...(Object.keys(report.files).length <= MAX_TRACKED_FILES ? { files: report.files } : {})
+        },
         failures,
         truncated: report.failuresTruncated,
         ran: report.total
@@ -541,17 +583,17 @@ export default function activate(orca: OrcaWorkerApi): void {
         rerunQueued.add(workspace.id)
         return
       }
-      throw hostError('conflict', 'Tests are already running in this workspace.')
+      throw hostError('conflict', t().errAlreadyRunning)
     }
     if (!isLocal(workspace)) {
-      throw hostError('not_permitted', 'Test Runner runs tests only in workspaces on this computer.')
+      throw hostError('not_permitted', t().errNotLocal)
     }
     const found = discover(workspace, true)
     if (found.kind === 'config-error') {
       throw hostError('invalid_params', found.message)
     }
     if (found.projects.length === 0) {
-      throw hostError('invalid_params', 'No test runner found in this workspace.')
+      throw hostError('invalid_params', t().errNoRunner)
     }
     // Claim the slot before the first await, so a second request cannot start a second run.
     const entry: ActiveRun = { handle: null, cancelled: false, startedAt: Date.now(), scope, trigger, project: null, done: 0, total: 0 }
@@ -591,7 +633,7 @@ export default function activate(orca: OrcaWorkerApi): void {
         return
       }
       void broadcast()
-      throw hostError('invalid_params', scope === 'failed' ? 'There are no failing tests to re-run.' : 'There are no tests to run.')
+      throw hostError('invalid_params', scope === 'failed' ? t().errNoFailing : t().errNoTests)
     }
 
     entry.scope = planned.scope
@@ -704,7 +746,7 @@ export default function activate(orca: OrcaWorkerApi): void {
     const max = Math.max(1, await setting('autoFixMaxRounds', 3))
     const loop = loops.get(workspace.id) ?? { round: 0, baseline: failureIds(previous), stopNotified: false }
     const baseline = new Set(loop.baseline)
-    const caused = run.failures.filter((f) => !f.flaky && !baseline.has(f.id))
+    const caused = run.failures.filter((f) => !f.flaky && !f.unreachable && !baseline.has(f.id))
     if (caused.length === 0) {
       loops.delete(workspace.id)
       return
@@ -738,7 +780,7 @@ export default function activate(orca: OrcaWorkerApi): void {
     const prompt = promptForFailures(promptProjects(workspace), seenNow, `(Test Runner, automatic round ${loop.round} of ${max})`)
     const sent = await orca.host.call('terminal.sendText', { terminalId: target.terminalId, text: prompt, enter: true })
     if (sent.accepted) {
-      await notify(t().notifyAutoFix(seenNow.length, target.title ?? target.agent ?? t().theAgent, loop.round, max), '')
+      await notify(t().notifyAutoFix(seenNow.length, agentName(target), loop.round, max), '')
     }
   }
 
@@ -789,6 +831,28 @@ export default function activate(orca: OrcaWorkerApi): void {
     await run(workspace, scope, 'agent-done', { agents })
   }
 
+  function agentName(agent: { agent: string | null; title: string | null }): string {
+    return (agent.agent && AGENT_NAMES[agent.agent]) || agent.agent || agent.title || t().theAgent
+  }
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+  /** Waits until Orca lists the terminal's agent as idle: it can take a prompt then. */
+  async function waitUntilReady(workspaceId: string, terminalId: string, timeoutMs: number): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      const { agents } = await orca.host.call('agents.list', { workspaceId }).catch(() => ({ agents: [] }))
+      const agent = agents.find((a) => a.terminalId === terminalId)
+      if (agent && (agent.state === 'done' || agent.state === 'waiting')) {
+        // The agent reports itself a moment before its input box draws.
+        await sleep(500)
+        return true
+      }
+      await sleep(500)
+    }
+    return false
+  }
+
   async function askAgent(workspace: Workspace, prompt: string, count: number): Promise<AskAgentResult> {
     const { agents } = await orca.host.call('agents.list', { workspaceId: workspace.id })
     const withTerminal = agents.filter((agent) => agent.terminalId)
@@ -797,21 +861,31 @@ export default function activate(orca: OrcaWorkerApi): void {
     if (idle?.terminalId) {
       const sent = await orca.host.call('terminal.sendText', { terminalId: idle.terminalId, text: prompt, enter: true })
       if (!sent.accepted) {
-        throw hostError('action_failed', 'The agent terminal did not accept the prompt.')
+        throw hostError('action_failed', t().errNotAccepted)
       }
       await orca.host.call('terminal.focus', { terminalId: idle.terminalId }).catch(() => undefined)
-      return { via: 'terminal', agent: idle.title ?? idle.agent, sent: count }
+      return { via: 'terminal', agent: agentName(idle), sent: count }
     }
     if (withTerminal.length > 0) {
-      throw hostError('conflict', 'The agent in this workspace is busy. Try again when it finishes.')
+      throw hostError('conflict', t().errBusy)
     }
     const agent = String(await setting('agent', 'claude'))
     if (!LAUNCHABLE_AGENTS.has(agent)) {
-      throw hostError('invalid_params', `Unknown agent "${agent}" in Test Runner settings.`)
+      throw hostError('invalid_params', t().errUnknownAgent(agent))
     }
-    const launched = await orca.host.call('agent.launch', { workspaceId: workspace.id, agent, prompt })
+    const name = AGENT_NAMES[agent] ?? agent
+    // Why not agent.launch's own prompt: Orca checks the terminal runs an agent right after
+    // starting it, before the agent is up, and drops the prompt. Start it, wait, then type.
+    const launched = await orca.host.call('agent.launch', { workspaceId: workspace.id, agent })
     await orca.host.call('terminal.focus', { terminalId: launched.terminalId }).catch(() => undefined)
-    return { via: 'launch', agent, sent: count }
+    if (!(await waitUntilReady(workspace.id, launched.terminalId, LAUNCH_READY_MS))) {
+      throw hostError('action_failed', t().errNotReady(name))
+    }
+    const sent = await orca.host.call('terminal.sendText', { terminalId: launched.terminalId, text: prompt, enter: true })
+    if (!sent.accepted) {
+      throw hostError('action_failed', t().errNotAccepted)
+    }
+    return { via: 'launch', agent: name, sent: count }
   }
 
   orca.events.on('workspace.changed', ({ context }) => {
@@ -882,7 +956,7 @@ export default function activate(orca: OrcaWorkerApi): void {
     const workspace = await byKey(key)
     const failure = (await load(workspace.id)).run?.failures.find((row) => row.id === failureId)
     if (!failure || failure.file.startsWith('/') || /^[A-Za-z]:/.test(failure.file)) {
-      throw hostError('invalid_params', 'That file is not inside this workspace.')
+      throw hostError('invalid_params', t().errNotInWorkspace)
     }
     await orca.host.call('editor.open', { workspaceId: workspace.id, path: failure.file })
     return { opened: true }
@@ -892,16 +966,17 @@ export default function activate(orca: OrcaWorkerApi): void {
     const workspace = await byKey(key)
     const last = (await load(workspace.id)).run
     const all = last?.failures ?? []
-    const real = all.filter((f) => !f.flaky)
+    const fixable = all.filter((f) => !f.flaky && !f.unreachable)
     const failures = failureId
       ? all.filter((row) => row.id === failureId)
       : onlyNew
-        ? real.filter((f) => f.isNew)
-        : real.length
-          ? real
-          : all
+        ? fixable.filter((f) => f.isNew)
+        : fixable.length
+          ? fixable
+          : all.filter((f) => !f.unreachable)
     if (failures.length === 0) {
-      throw hostError('invalid_params', 'There is no failure to send.')
+      const onlyUnreachable = all.length > 0 && all.every((f) => f.unreachable || f.flaky) && all.some((f) => f.unreachable)
+      throw hostError('invalid_params', onlyNew ? t().errNoNew : onlyUnreachable ? t().errOnlyUnreachable : t().errNoFailure)
     }
     return askAgent(workspace, promptForFailures(promptProjects(workspace), failures), failures.length)
   })

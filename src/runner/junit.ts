@@ -14,6 +14,8 @@ import {
   trimStack,
   truncate,
   workspaceRelative,
+  count,
+  type FileCounts,
   type ParsedFailure,
   type ParsedReport
 } from './report.ts'
@@ -218,7 +220,7 @@ export function parseJunit(
   let failed = 0
   let skipped = 0
   let truncated = false
-  const ran = new Set<string>()
+  const perFile: Record<string, FileCounts> = {}
   const fileOf = (testcase: XmlNode, suites: XmlNode[], docFile: string | undefined) => {
     const classname = testcase.attrs.classname ?? ''
     const fileAttr = testcase.attrs.file ?? [...suites].reverse().find((s) => s.attrs.file)?.attrs.file ?? docFile
@@ -228,17 +230,20 @@ export function parseJunit(
 
   for (const { testcase, suites, docFile } of cases) {
     const located = fileOf(testcase, suites, docFile)
-    ran.add(located.file)
+    perFile[located.file] ??= [0, 0, 0]
     const problem = testcase.children.find((c) => c.name === 'failure' || c.name === 'error')
     if (!problem) {
       if (testcase.children.some((c) => c.name === 'skipped')) {
         skipped += 1
+        count(perFile, located.file, 2)
       } else {
         passed += 1
+        count(perFile, located.file, 0)
       }
       continue
     }
     failed += 1
+    count(perFile, located.file, 1)
     if (failures.length >= MAX_FAILURES) {
       truncated = true
       continue
@@ -255,10 +260,10 @@ export function parseJunit(
       (options.runner === 'pytest' && Number.isFinite(lineAttr) && testcase.attrs.line !== undefined ? lineAttr + 1 : null) ??
       (absolute ? lineFromMessage(message, absolute) : null)
     let id = clip(`${file}::${name}${browser ? ` [${browser}]` : ''}`, MAX_ID_CHARS)
-    const count = (seen.get(id) ?? 0) + 1
-    seen.set(id, count)
-    if (count > 1) {
-      id = `${id}#${count}`
+    const repeat = (seen.get(id) ?? 0) + 1
+    seen.set(id, repeat)
+    if (repeat > 1) {
+      id = `${id}#${repeat}`
     }
     failures.push({
       id,
@@ -270,5 +275,5 @@ export function parseJunit(
       message: truncate(message || 'The test failed without a message.', MAX_MESSAGE_CHARS)
     })
   }
-  return { passed, failed, skipped, total: passed + failed + skipped, failures, failuresTruncated: truncated, files: [...ran] }
+  return { passed, failed, skipped, total: passed + failed + skipped, failures, failuresTruncated: truncated, files: perFile }
 }

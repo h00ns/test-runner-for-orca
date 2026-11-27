@@ -170,8 +170,10 @@ export function resolveNode(env: NodeJS.ProcessEnv = process.env, execPath: stri
   return { program: execPath, env: { ...rest, PATH, ELECTRON_RUN_AS_NODE: '1' } }
 }
 
-/** The program and environment every runner gets: a PATH that finds node, java and friends. */
+/** The program and environment every runner gets: a PATH that finds node, java and friends.
+ *  Not CI=1: Playwright configs read it (`reuseExistingServer: !process.env.CI`, retries,
+ *  workers), so it would refuse the dev server the person already runs. */
 export function runnerEnv(env: NodeJS.ProcessEnv = process.env, execPath: string = process.execPath): NodeCommand {
   const node = resolveNode(env, execPath)
-  return { program: node.program, env: { ...node.env, CI: '1', FORCE_COLOR: '0', NO_COLOR: '1' } }
+  return { program: node.program, env: { ...node.env, FORCE_COLOR: '0', NO_COLOR: '1' } }
 }

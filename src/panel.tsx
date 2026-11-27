@@ -99,11 +99,16 @@ const openFile = (failure: TestFailure) =>
 
 const askAgent = (options: { failure?: TestFailure; onlyNew?: boolean }) =>
   act(`ask:${options.failure?.id ?? (options.onlyNew ? 'new' : 'all')}`, async () => {
-    const answer = await plugin.request('tests.askAgent', {
-      workspaceKey: shownKey(),
-      ...(options.failure ? { failureId: options.failure.id } : {}),
-      ...(options.onlyNew ? { onlyNew: true } : {})
-    })
+    const answer = await plugin.request(
+      'tests.askAgent',
+      {
+        workspaceKey: shownKey(),
+        ...(options.failure ? { failureId: options.failure.id } : {}),
+        ...(options.onlyNew ? { onlyNew: true } : {})
+      },
+      // Starting an agent and waiting for it to be ready can take most of a minute.
+      { timeoutMs: 90_000 }
+    )
     const who = answer.agent ?? s.theAgent
     return answer.via === 'terminal' ? s.sentTo(who, answer.sent) : s.startedAgent(who)
   })
@@ -187,10 +192,11 @@ function Failure({ failure, first, projectName }: { failure: TestFailure; first:
   return (
     <Collapsible title={failure.name} description={projectName ? `${projectName} · ${where}` : where} defaultOpen={first}>
       <Stack gap="sm">
-        {failure.isNew || failure.flaky ? (
+        {failure.isNew || failure.flaky || failure.unreachable ? (
           <Row gap="xs">
             {failure.isNew ? <Badge tone="accent">{s.newBadge}</Badge> : null}
             {failure.flaky ? <Badge tone="warning">{s.flakyBadge}</Badge> : null}
+            {failure.unreachable ? <Badge tone="neutral">{s.unreachableBadge}</Badge> : null}
           </Row>
         ) : null}
         {failure.flaky ? (
@@ -200,9 +206,11 @@ function Failure({ failure, first, projectName }: { failure: TestFailure; first:
         ) : null}
         <CodeView code={failure.message || s.noMessage} label={s.failureMessage} wrap maxHeight="sm" />
         <Row gap="xs" wrap>
-          <Button size="sm" icon="agent" disabled={pending !== null} onPress={() => askAgent({ failure })} tooltip={s.askFixHint}>
-            {s.askFix}
-          </Button>
+          {failure.unreachable ? null : (
+            <Button size="sm" icon="agent" disabled={pending !== null} onPress={() => askAgent({ failure })} tooltip={s.askFixHint}>
+              {s.askFix}
+            </Button>
+          )}
           <Button size="sm" variant="ghost" icon="file" disabled={pending !== null} onPress={() => openFile(failure)}>
             {s.openFile}
           </Button>
@@ -217,14 +225,26 @@ function Results({ run, projects }: { run: TestRun; projects: ProjectInfo[] }) {
   const errors = run.projects.filter((p) => p.error)
   const names = new Map(projects.map((p) => [p.id, p.name]))
   const multi = projects.length > 1
-  const real = run.failures.filter((f) => !f.flaky)
+  const real = run.failures.filter((f) => !f.flaky && !f.unreachable)
   const fresh = real.filter((f) => f.isNew)
+  // Grouped by address: "12 tests could not reach http://localhost:3000".
+  const unreachable = new Map<string, number>()
+  for (const f of run.failures) {
+    if (f.unreachable) {
+      unreachable.set(f.unreachable, (unreachable.get(f.unreachable) ?? 0) + 1)
+    }
+  }
   return (
     <Stack gap="md">
       {multi && run.projects.length > 1 ? <ProjectTable run={run} /> : null}
       {errors.map((p) => (
         <Callout key={`e-${p.project}`} tone="danger" title={s.didNotFinish(p.name, p.runner)} icon="error">
           <CodeView code={p.error ?? ''} label={s.runnerOutput} wrap maxHeight="md" />
+        </Callout>
+      ))}
+      {[...unreachable.entries()].map(([target, n]) => (
+        <Callout key={`u-${target}`} tone="warning" title={s.unreachableBadge} icon="warning">
+          <Text size="sm">{s.unreachableNote(n, target)}</Text>
         </Callout>
       ))}
       {run.ran === 0 && run.scope === 'related' && errors.length === 0 ? (
@@ -247,7 +267,7 @@ function Results({ run, projects }: { run: TestRun; projects: ProjectInfo[] }) {
                   {s.askFixNew}
                 </Button>
               ) : null}
-              {run.failures.length > 1 ? (
+              {real.length > 1 ? (
                 <Button size="sm" variant="outline" icon="agent" disabled={pending !== null} onPress={() => askAgent({})}>
                   {s.askFixAll}
                 </Button>

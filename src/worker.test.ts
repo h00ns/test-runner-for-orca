@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, assert, mockHost, mountWorker, test, type TestWorker } from 'orca/testing'
 import type { PanelState, TestRun } from './protocol.ts'
 import * as main from './worker.ts'
-import { fitRun, markFlaky, mergeRun, workspaceKey, type ProjectOutcome } from './worker.ts'
+import { fitRun, markFlaky, mergeRun, unreachableTarget, workspaceKey, type ProjectOutcome } from './worker.ts'
 
 const KEY = workspaceKey('w1')
 
@@ -410,7 +410,7 @@ test('auto-fix sends the failures an agent caused back to it, then stops after t
   assert.match(sent[0]!.text, /^\(Test Runner, automatic round 1 of 2\) The test "sum › negatives"/)
   assert.match(sent[1]!.text, /^\(Test Runner, automatic round 2 of 2\)/)
   const titles = (host.callsOf('notifications.show') as { title: string }[]).map((n) => n.title)
-  assert.ok(titles.includes('Sent 1 new failure back to Claude (round 1 of 2)'), titles.join(' | '))
+  assert.ok(titles.includes('Sent 1 new failure back to Claude Code (round 1 of 2)'), titles.join(' | '))
   assert.ok(titles.includes('Stopped sending failures in feature-x after 2 rounds'), titles.join(' | '))
   assert.equal(host.callsOf('agent.launch').length, 0, 'an automatic loop never starts an agent')
 })
@@ -443,12 +443,12 @@ test('sends a failure to the idle agent in the workspace', async () => {
   const failureId = state.lastRun?.failures[0]?.id ?? ''
 
   const answer = await worker.request('tests.askAgent', { workspaceKey: KEY, failureId })
-  assert.deepEqual(answer, { via: 'terminal', agent: 'Claude', sent: 1 })
+  assert.deepEqual(answer, { via: 'terminal', agent: 'Claude Code', sent: 1 })
   const [sent] = host.callsOf('terminal.sendText') as { terminalId: string; text: string; enter: boolean }[]
   assert.equal(sent?.terminalId, 't1')
   assert.match(sent?.text ?? '', /"sum › negatives" in src\/sum\.test\.ts:7/)
   assert.ok(!(sent?.text ?? '').includes('\n'))
-  await assert.rejects(worker.request('tests.askAgent', { workspaceKey: KEY, onlyNew: true }), /no failure to send/)
+  await assert.rejects(worker.request('tests.askAgent', { workspaceKey: KEY, onlyNew: true }), /no new failures to send/)
 })
 
 test('acts on the workspace the panel showed, even after focus moves', async () => {
@@ -464,15 +464,59 @@ test('acts on the workspace the panel showed, even after focus moves', async () 
   await assert.rejects(worker.request('tests.askAgent', { workspaceKey: 'gone' }), /no longer open/)
 })
 
-test('starts an agent when the workspace has none, and refuses a busy one', async () => {
+test('starts an agent when the workspace has none, waits until it is ready, then types the failure', async () => {
   const { worker, host } = await setupWorker({ settings: { retryFailures: false } })
   await worker.request('tests.run', { workspaceKey: KEY, scope: 'all' })
   await until(worker, finished)
-  assert.deepEqual(await worker.request('tests.askAgent', { workspaceKey: KEY }), { via: 'launch', agent: 'claude', sent: 1 })
+  // Orca lists a started agent a moment later; until then the terminal is not there.
+  let listed = 0
+  host.respond('agents.list', () =>
+    host.callsOf('agent.launch').length > 0 && ++listed > 2
+      ? { agents: [{ terminalId: 'new-term', title: 'Untitled', agent: 'claude', state: 'done', stateStartedAt: 0 }] }
+      : { agents: [] }
+  )
+  assert.deepEqual(await worker.request('tests.askAgent', { workspaceKey: KEY }), { via: 'launch', agent: 'Claude Code', sent: 1 })
+  const [launch] = host.callsOf('agent.launch') as { agent: string; prompt?: string }[]
+  assert.equal(launch?.agent, 'claude')
+  assert.equal(launch?.prompt, undefined, "not agent.launch's own prompt: Orca can drop it")
+  const [sent] = host.callsOf('terminal.sendText') as { terminalId: string; text: string }[]
+  assert.equal(sent?.terminalId, 'new-term')
+  assert.match(sent?.text ?? '', /negatives/)
+})
+
+test('a busy agent is never typed into', async () => {
+  const { worker, host } = await setupWorker({ settings: { retryFailures: false } })
+  await worker.request('tests.run', { workspaceKey: KEY, scope: 'all' })
+  await until(worker, finished)
   host.respond('agents.list', {
     agents: [{ terminalId: 't9', title: 'Claude', agent: 'claude', state: 'blocked', stateStartedAt: 0 }]
   })
   await assert.rejects(worker.request('tests.askAgent', { workspaceKey: KEY }), /busy/)
+  assert.equal(host.callsOf('terminal.sendText').length, 0)
+})
+
+test('failures that could not reach a server are marked and never sent to an agent', async () => {
+  const unreachable = (dir: string) => ({
+    testResults: [
+      {
+        name: join(dir, 'src/api.test.ts'),
+        status: 'failed',
+        assertionResults: [
+          { title: 'health', status: 'failed', failureMessages: ['Error: connect ECONNREFUSED 127.0.0.1:59999'] }
+        ]
+      }
+    ]
+  })
+  const { worker, host } = await setupWorker({
+    report: unreachable,
+    settings: { retryFailures: false },
+    agents: [{ terminalId: 't1', title: 'Claude', agent: 'claude', state: 'done', stateStartedAt: 0 }]
+  })
+  await worker.request('tests.run', { workspaceKey: KEY, scope: 'all' })
+  const state = await until(worker, finished)
+  assert.equal(state.lastRun?.failures[0]?.unreachable, '127.0.0.1:59999')
+  await assert.rejects(worker.request('tests.askAgent', { workspaceKey: KEY }), /running server/)
+  assert.equal(host.callsOf('terminal.sendText').length, 0)
 })
 
 test('opens the failing file in the editor', async () => {
@@ -613,7 +657,7 @@ test('results of workspaces Orca no longer lists are pruned from storage', async
   assert.deepEqual(Object.keys(host.data().storage).sort(), ['locale'])
 })
 
-test('mergeRun: a partial run replaces only what it reached; other projects and files keep their results', () => {
+test('mergeRun: a partial run replaces the files it reached, by their counts; the rest keep theirs', () => {
   const f = (project: string, file: string, name: string, flaky = false) => ({
     id: `${project}|${file}::${name}`, project, file, name, title: name, line: null, message: 'x', isNew: false, flaky
   })
@@ -621,34 +665,49 @@ test('mergeRun: a partial run replaces only what it reached; other projects and 
     scope: 'all', trigger: 'manual', startedAt: 0, finishedAt: 1, changedFiles: null, ran: 30,
     passed: 25, failed: 3, skipped: 2, flaky: 0, total: 30, failuresTruncated: false,
     projects: [
-      { project: 'a', name: 'a', runner: 'vitest', passed: 10, failed: 2, skipped: 2, flaky: 0, error: null },
-      { project: 'b', name: 'b', runner: 'jest', passed: 15, failed: 1, skipped: 0, flaky: 0, error: null }
+      { project: 'a', name: 'a', runner: 'vitest', passed: 10, failed: 2, skipped: 2, flaky: 0, error: null,
+        files: { 'a/x.test.ts': [4, 1, 0], 'a/y.test.ts': [6, 1, 2] } },
+      { project: 'b', name: 'b', runner: 'jest', passed: 15, failed: 1, skipped: 0, flaky: 0, error: null,
+        files: { 'b/z.test.ts': [15, 1, 0] } }
     ],
     failures: [f('a', 'a/x.test.ts', 'x'), f('a', 'a/y.test.ts', 'y'), f('b', 'b/z.test.ts', 'z')]
   }
-  // A related run reached a/x.test.ts (now passing) and a/w.test.ts (now failing); b did not run.
+  // A related run reached a/x.test.ts (now all 5 pass) and a new a/w.test.ts (1 of 2 fails).
   const outcome: ProjectOutcome = {
     project: { id: 'a', name: 'a', runner: 'vitest' },
     ranFiles: ['a/x.test.ts', 'a/w.test.ts'],
-    result: { project: 'a', name: 'a', runner: 'vitest', passed: 3, failed: 1, skipped: 0, flaky: 0, error: null },
+    result: { project: 'a', name: 'a', runner: 'vitest', passed: 6, failed: 1, skipped: 0, flaky: 0, error: null,
+      files: { 'a/x.test.ts': [5, 0, 0], 'a/w.test.ts': [1, 1, 0] } },
     failures: [{ ...f('a', 'a/w.test.ts', 'w'), isNew: true }],
     truncated: false,
-    ran: 4
+    ran: 7
   }
-  const merged = mergeRun(previous, [outcome], ['a', 'b'], { scope: 'related', trigger: 'agent-done', startedAt: 2, finishedAt: 3, changedFiles: 1 })
+  const meta = { scope: 'related' as const, trigger: 'agent-done' as const, startedAt: 2, finishedAt: 3, changedFiles: 1 }
+  const merged = mergeRun(previous, [outcome], ['a', 'b'], meta)
   assert.deepEqual(merged.failures.map((x) => [x.file, x.isNew]), [['a/y.test.ts', false], ['a/w.test.ts', true], ['b/z.test.ts', false]])
-  assert.deepEqual(merged.projects.map((p) => [p.project, p.passed, p.failed]), [['a', 10, 2], ['b', 15, 1]])
-  assert.equal(merged.failed, 3)
-  assert.equal(merged.ran, 4)
+  // a: x 5/0/0 + y 6/1/2 + w 1/1/0 = 12 passed, 2 failed, 2 skipped. b unchanged.
+  assert.deepEqual(merged.projects.map((p) => [p.project, p.passed, p.failed, p.skipped]), [['a', 12, 2, 2], ['b', 15, 1, 0]])
+  assert.deepEqual([merged.passed, merged.failed, merged.skipped, merged.total, merged.ran], [27, 3, 2, 32, 7])
+
+  // Running the same partial run again changes nothing: counts never drift.
+  const again = mergeRun(merged, [outcome], ['a', 'b'], meta)
+  assert.deepEqual([again.passed, again.failed, again.skipped, again.total], [27, 3, 2, 32])
 
   // A whole-project run replaces it; an error keeps the last known failures under the error.
-  const whole = mergeRun(previous, [{ ...outcome, ranFiles: null, failures: [] , result: { ...outcome.result, failed: 0, passed: 14 } }], ['a', 'b'], { scope: 'all', trigger: 'manual', startedAt: 2, finishedAt: 3, changedFiles: null })
+  const whole = mergeRun(previous, [{ ...outcome, ranFiles: null, failures: [], result: { ...outcome.result, failed: 0, passed: 14, files: undefined } }], ['a', 'b'], { ...meta, scope: 'all' })
   assert.deepEqual(whole.failures.map((x) => x.file), ['b/z.test.ts'])
-  const broken = mergeRun(previous, [{ ...outcome, failures: [], result: { ...outcome.result, error: 'boom' } }], ['a', 'b'], { scope: 'all', trigger: 'manual', startedAt: 2, finishedAt: 3, changedFiles: null })
+  const broken = mergeRun(previous, [{ ...outcome, failures: [], result: { ...outcome.result, error: 'boom' } }], ['a', 'b'], { ...meta, scope: 'all' })
   assert.equal(broken.projects[0]?.error, 'boom')
   assert.equal(broken.failures.length, 3)
   // A project that no longer exists is dropped.
-  assert.deepEqual(mergeRun(previous, [], ['b'], { scope: 'all', trigger: 'manual', startedAt: 2, finishedAt: 3, changedFiles: null }).projects.map((p) => p.project), ['b'])
+  assert.deepEqual(mergeRun(previous, [], ['b'], meta).projects.map((p) => p.project), ['b'])
+})
+
+test('unreachableTarget names the address a test could not connect to', () => {
+  assert.equal(unreachableTarget('Error: page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3000/create'), 'http://localhost:3000')
+  assert.equal(unreachableTarget('Error: connect ECONNREFUSED 127.0.0.1:5432'), '127.0.0.1:5432')
+  assert.equal(unreachableTarget('TypeError: fetch failed ... ECONNREFUSED'), 'the server')
+  assert.equal(unreachableTarget('AssertionError: expected 1 to be 2'), null)
 })
 
 test('markFlaky compares by test, not by the #n a repeated name gets', () => {

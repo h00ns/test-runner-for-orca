@@ -62,8 +62,6 @@ const en = {
   failureMessage: 'Failure message',
   noMessage: '(no message)',
   truncated: (n: number) => `Showing the first ${n} failures.`,
-  sentTo: (agent: string, n: number) => `Sent ${n} failure${n === 1 ? '' : 's'} to ${agent}.`,
-  startedAgent: (agent: string) => `Started ${agent} with the failure.`,
   theAgent: 'the agent',
   configFooter: 'Projects from .orca-test-runner.json',
   noRuns: 'No runs yet',
@@ -84,7 +82,27 @@ const en = {
   barPassed: (n: number) => `${n} passed`,
   barError: 'Tests: error',
   barIdle: 'Tests',
-  barTooltip: 'Test Runner: run tests in this workspace'
+  barTooltip: 'Test Runner: run tests in this workspace',
+  // Worker errors, shown in the panel.
+  errWorkspaceGone: 'That workspace is no longer open.',
+  errAlreadyRunning: 'Tests are already running in this workspace.',
+  errNotLocal: 'Test Runner runs tests only in workspaces on this computer.',
+  errNoRunner: 'No test runner found in this workspace.',
+  errNoFailing: 'There are no failing tests to re-run.',
+  errNoTests: 'There are no tests to run.',
+  errNotAccepted: 'The agent terminal did not take the prompt.',
+  errBusy: 'The agent in this workspace is busy. Try again when it finishes.',
+  errUnknownAgent: (agent: string) => `Unknown agent "${agent}" in Test Runner settings.`,
+  errNotInWorkspace: 'That file is not inside this workspace.',
+  errNoFailure: 'There is no failure to send.',
+  errNoNew: 'There are no new failures to send.',
+  errOnlyUnreachable: 'There is no failure an agent can fix: the rest need a running server.',
+  errNotReady: (agent: string) => `${agent} started, but was not ready within a minute, so the failure was not sent. Press again once it is.`,
+  unreachableBadge: 'server not running',
+  unreachableNote: (n: number, target: string) =>
+    `${n} test${n === 1 ? '' : 's'} could not reach ${target}. Start the app or service first (for example pnpm dev), then run them again. They are not sent to the agent.`,
+  sentTo: (agent: string, n: number) => `Sent ${n} failure${n === 1 ? '' : 's'} to ${agent}.`,
+  startedAgent: (agent: string) => `Started ${agent} and sent it the failure.`
 }
 
 export type Strings = typeof en
@@ -146,8 +164,6 @@ const ko: Strings = {
   failureMessage: '실패 메시지',
   noMessage: '(메시지 없음)',
   truncated: (n) => `처음 ${n}개 실패만 보여줘요.`,
-  sentTo: (agent, n) => `${agent}에게 실패 ${n}개를 보냈어요.`,
-  startedAgent: (agent) => `${agent}를 띄워서 실패를 맡겼어요.`,
   theAgent: '에이전트',
   configFooter: '.orca-test-runner.json의 프로젝트 설정 사용 중',
   noRuns: '아직 실행 기록이 없어요',
@@ -166,7 +182,36 @@ const ko: Strings = {
   barPassed: (n) => `${n}개 통과`,
   barError: '테스트 오류',
   barIdle: '테스트',
-  barTooltip: 'Test Runner: 이 워크스페이스의 테스트 실행'
+  barTooltip: 'Test Runner: 이 워크스페이스의 테스트 실행',
+  errWorkspaceGone: '그 워크스페이스는 더 이상 열려 있지 않아요.',
+  errAlreadyRunning: '이 워크스페이스에서 이미 테스트가 실행 중이에요.',
+  errNotLocal: 'Test Runner는 이 컴퓨터의 워크스페이스에서만 테스트를 실행해요.',
+  errNoRunner: '이 워크스페이스에서 테스트 러너를 찾지 못했어요.',
+  errNoFailing: '다시 실행할 실패한 테스트가 없어요.',
+  errNoTests: '실행할 테스트가 없어요.',
+  errNotAccepted: '에이전트 터미널이 프롬프트를 받지 않았어요.',
+  errBusy: '이 워크스페이스의 에이전트가 작업 중이에요. 끝나면 다시 시도해 주세요.',
+  errUnknownAgent: (agent) => `Test Runner 설정의 에이전트 "${agent}"를 알 수 없어요.`,
+  errNotInWorkspace: '그 파일은 이 워크스페이스 안에 없어요.',
+  errNoFailure: '보낼 실패가 없어요.',
+  errNoNew: '보낼 새 실패가 없어요.',
+  errOnlyUnreachable: '에이전트가 고칠 수 있는 실패가 없어요. 나머지는 서버가 떠 있어야 해요.',
+  errNotReady: (agent) => `${agent}를 띄웠지만 1분 안에 준비되지 않아 실패를 보내지 못했어요. 준비되면 다시 눌러 주세요.`,
+  unreachableBadge: '서버 꺼짐',
+  unreachableNote: (n, target) =>
+    `테스트 ${n}개가 ${target}에 연결하지 못했어요. 앱이나 서비스를 먼저 실행한 뒤(예: pnpm dev) 다시 실행해 주세요. 이 실패는 에이전트에게 보내지 않아요.`,
+  sentTo: (agent, n) => `${agent}에게 실패 ${n}개를 보냈어요.`,
+  startedAgent: (agent) => `${agent}를 띄워서 실패를 보냈어요.`
+}
+
+/** How an agent kind is named to people. */
+export const AGENT_NAMES: Record<string, string> = {
+  claude: 'Claude Code',
+  codex: 'Codex',
+  gemini: 'Gemini CLI',
+  opencode: 'OpenCode',
+  cursor: 'Cursor',
+  copilot: 'GitHub Copilot'
 }
 
 export function strings(locale: Locale): Strings {

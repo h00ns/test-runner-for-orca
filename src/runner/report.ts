@@ -32,8 +32,16 @@ export type ParsedReport = {
   total: number
   failures: ParsedFailure[]
   failuresTruncated: boolean
-  /** Workspace-relative test files the run reached, passing or not. */
-  files: string[]
+  /** Per test file the run reached (workspace-relative): [passed, failed, skipped]. */
+  files: Record<string, FileCounts>
+}
+
+export type FileCounts = [passed: number, failed: number, skipped: number]
+
+/** Adds to one file's counts, creating them. */
+export function count(files: Record<string, FileCounts>, file: string, index: 0 | 1 | 2): void {
+  const entry = (files[file] ??= [0, 0, 0])
+  entry[index] += 1
 }
 
 // eslint-disable-next-line no-control-regex
@@ -119,17 +127,17 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
     }
     // Why unique: the same file can run twice (Vitest projects) and titles can repeat; the panel
     // keys rows by id and Orca refuses a render with duplicate keys.
-    const count = (seen.get(failure.id) ?? 0) + 1
-    seen.set(failure.id, count)
-    failures.push(count === 1 ? failure : { ...failure, id: `${failure.id}#${count}` })
+    const repeat = (seen.get(failure.id) ?? 0) + 1
+    seen.set(failure.id, repeat)
+    failures.push(repeat === 1 ? failure : { ...failure, id: `${failure.id}#${repeat}` })
   }
 
-  const ran = new Set<string>()
+  const perFile: Record<string, FileCounts> = {}
   for (const fileResult of files) {
     const absolute = str(fileResult.name)
     const file = workspaceRelative(roots, absolute)
     if (absolute) {
-      ran.add(file)
+      perFile[file] ??= [0, 0, 0]
     }
     const assertions = Array.isArray(fileResult.assertionResults)
       ? (fileResult.assertionResults as AssertionResult[])
@@ -139,14 +147,17 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
       const status = str(assertion.status)
       if (status === 'passed') {
         passed += 1
+        count(perFile, file, 0)
         continue
       }
       if (status !== 'failed') {
         // pending, skipped, todo, disabled
         skipped += 1
+        count(perFile, file, 2)
         continue
       }
       failed += 1
+      count(perFile, file, 1)
       fileFailures += 1
       const title = str(assertion.title)
       const ancestors = Array.isArray(assertion.ancestorTitles)
@@ -175,6 +186,7 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
     const fileMessage = trimStack(stripAnsi(str(fileResult.message))).trim()
     if (str(fileResult.status) === 'failed' && fileFailures === 0) {
       failed += 1
+      count(perFile, file, 1)
       push({
         id: clip(`${file}::`, MAX_ID_CHARS),
         file,
@@ -193,6 +205,6 @@ export function parseReport(report: unknown, roots: string | readonly string[]):
     total: passed + failed + skipped,
     failures,
     failuresTruncated: truncated,
-    files: [...ran]
+    files: perFile
   }
 }

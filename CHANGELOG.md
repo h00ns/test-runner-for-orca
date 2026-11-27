@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.3
+
+Found by testing every flow in a real Orca, with real agents:
+
+- **Ask agent to fix** with no agent open started the agent but never delivered the failure:
+  Orca drops a prompt sent with the launch, before it sees the agent running. Test Runner now
+  starts the agent, waits until it is ready, then types the failure.
+- Counts drifted after partial runs (3 tests could show as 4 passed). Partial runs now merge
+  per test file, so totals are always the real ones.
+- `CI=1` is no longer set. Playwright configs read it (`reuseExistingServer: !process.env.CI`),
+  so a run failed while your dev server was up ("http://localhost:4173 is already used").
+- Failures that could not reach a server or database (connection refused) are marked
+  **server not running**, with a note to start the app, and are never sent to an agent.
+- Error messages follow Orca's language, and agents are named by kind (Claude Code, Codex…).
+- "Fix new only" with no new failure now says so.
+
 ## 0.2.2
 
 - The plugin's description and directory page say how to set up a repository that is not found on

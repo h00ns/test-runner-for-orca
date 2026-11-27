@@ -24,10 +24,10 @@ test("the user's node runs the tests, not Orca's Electron, inside a plugin worke
   assert.ok(node.env.PATH?.startsWith(bin))
 })
 
-test('runner environment: CI on, colours off, no ELECTRON_RUN_AS_NODE', () => {
-  const { program, env } = runnerEnv(workerEnv, ORCA)
+test('runner environment: colours off; no CI (Playwright configs read it), no ELECTRON_RUN_AS_NODE', () => {
+  const { program, env } = runnerEnv({ ...workerEnv, CI: undefined }, ORCA)
   assert.equal(program, join(bin, nodeName))
-  assert.deepEqual([env.CI, env.FORCE_COLOR, env.NO_COLOR, env.ELECTRON_RUN_AS_NODE], ['1', '0', '1', undefined])
+  assert.deepEqual([env.CI, env.FORCE_COLOR, env.NO_COLOR, env.ELECTRON_RUN_AS_NODE], [undefined, '0', '1', undefined])
 })
 
 test('a JS runner starts with that node', () => {

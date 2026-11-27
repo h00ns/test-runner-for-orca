@@ -45,6 +45,9 @@ removed. Two badges mark what deserves attention:
 - **new**: it was passing in the run before, so the latest change most likely broke it.
 - **flaky**: it failed, then passed when run again. It is probably not the change's fault, and it
   is never sent to an agent.
+- **server not running**: it could not connect to a server or database (connection refused).
+  Start the app first, for example `pnpm dev`. No code change fixes it, so it is never sent to
+  an agent.
 
 The result also shows in Orca's **status bar** (for example *2 failed* or *41 passed*). Pressing
 it runs the tests.
@@ -79,7 +82,8 @@ The test "cart › applies the coupon once" in apps/web/src/cart.test.ts:42 is f
 - It goes to an agent that is idle (finished or waiting for input).
 - It never types into an agent that is working or waiting for permission. You get *The agent in
   this workspace is busy* instead.
-- With no agent open, it starts the one chosen in [settings](#settings) (Claude Code by default).
+- With no agent open, it starts the one chosen in [settings](#settings) (Claude Code by default),
+  waits until it is ready, then types the failure.
 
 ### The automatic fix loop
 
@@ -120,8 +124,10 @@ It looks at your `test` script only to tell which runner a package uses.
 > those options are not used. Copy them into `args` in [`.orca-test-runner.json`](#configuration):
 > `{ "projects": [{ "runner": "vitest", "args": ["--config", "vitest.unit.config.ts"] }] }`
 
-Runs use your own `node` (from your PATH, Homebrew, Volta, mise or asdf), with `CI=1` and colours
-off. Coverage is off, so coverage thresholds don't fail a run of part of the suite.
+Runs use your own `node` (from your PATH, Homebrew, Volta, mise or asdf), with colours off.
+Coverage is off, so coverage thresholds don't fail a run of part of the suite. `CI` is not set,
+so a Playwright config with `reuseExistingServer: !process.env.CI` still uses the dev server you
+already run.
 
 ## Supported runners
 
@@ -215,6 +221,11 @@ The panel reads the file the next time it opens.
 - *Cannot find native binding* (rolldown, esbuild, swc): update Test Runner to 0.2.1 or later.
 - *exited with code 1 although no test failed*: the runner failed after the tests, for example on
   an unhandled error. The output shows it.
+
+**Tests fail with "server not running" (connection refused)**
+- The tests need your app, an API or a database running, and it isn't. Start it (for example
+  `pnpm dev`) and run them again, or give Playwright a `webServer` in its config so it starts
+  the app itself.
 
 **Tests don't run after the agent finishes**
 - Check **Run when an agent finishes** is on.

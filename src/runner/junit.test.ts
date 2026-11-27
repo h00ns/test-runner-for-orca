@@ -129,3 +129,9 @@ test('the XML reader survives CDATA, entities, comments and junk', () => {
   assert.equal(doc.children[0]?.text, '<raw>t')
   assert.equal(parseJunit(['not xml at all'], { runner: 'pytest', roots: root, locate }).total, 0)
 })
+
+test('counts per test file', () => {
+  const xml = `<testsuite><testcase classname="com.acme.CartTest" name="a()"/><testcase classname="com.acme.CartTest" name="b()"><failure message="x"/></testcase><testcase classname="com.acme.CartTest" name="c()"><skipped/></testcase></testsuite>`
+  assert.deepEqual(parseJunit([xml], { runner: 'gradle', roots: root, locate }).files, { 'src/test/java/com/acme/CartTest.java': [1, 1, 1] })
+})
+

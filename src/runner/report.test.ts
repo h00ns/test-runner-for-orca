@@ -168,3 +168,18 @@ test('paths resolve against the real path and ignore case where the file system 
   assert.equal(workspaceRelative('/Users/me/App', '/users/me/app/a.ts', true), 'a.ts')
   assert.equal(workspaceRelative('/Users/me/App', '/users/me/app/a.ts', false), '/users/me/app/a.ts')
 })
+
+test('counts per test file, so partial runs can be merged exactly', () => {
+  const parsed = parseReport(
+    {
+      testResults: [
+        { name: '/work/app/a.test.ts', status: 'failed', assertionResults: [{ title: 'x', status: 'passed' }, { title: 'y', status: 'failed' }, { title: 'z', status: 'skipped' }] },
+        { name: '/work/app/b.test.ts', status: 'failed', message: 'Cannot find module', assertionResults: [] },
+        { name: '/work/app/c.test.ts', status: 'passed', assertionResults: [] }
+      ]
+    },
+    root
+  )
+  assert.deepEqual(parsed.files, { 'a.test.ts': [1, 1, 1], 'b.test.ts': [0, 1, 0], 'c.test.ts': [0, 0, 0] })
+})
+

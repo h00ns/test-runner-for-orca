@@ -36,6 +36,9 @@ export type TestFailure = {
   isNew: boolean
   /** Failed, then passed when re-run: probably not the change's fault. */
   flaky: boolean
+  /** Could not reach a server or database (connection refused): the app is not running, which no
+   *  code change fixes. Never sent to an agent. */
+  unreachable?: string | null
 }
 
 export type ProjectResult = {
@@ -48,6 +51,9 @@ export type ProjectResult = {
   flaky: number
   /** The runner produced no usable report: a config or compile error, a crash, a timeout. */
   error: string | null
+  /** Per test file: [passed, failed, skipped]. Kept in storage to merge partial runs exactly;
+   *  left out of what the panel receives. */
+  files?: Record<string, [number, number, number]>
 }
 
 /** The workspace's test state: the last run merged over what earlier runs found for the projects
