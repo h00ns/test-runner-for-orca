@@ -96,7 +96,7 @@
           <tbody>
             <tr><td><span class="ui">Run all</span></td><td class="wrap">Runs every test in the workspace, or in the project picked above it.</td></tr>
             <tr><td><span class="ui">Re-run failed</span></td><td class="wrap">Runs only the test files that failed last time.</td></tr>
-            <tr><td><span class="ui">Stop</span></td><td class="wrap">Stops the run in progress.</td></tr>
+            <tr><td><span class="ui">Stop</span></td><td class="wrap">Stops the run in progress, and what it started, such as Playwright's web server.</td></tr>
             <tr><td><span class="ui">All projects ⌄</span></td><td class="wrap">Shown in a monorepo: pick one package to run only that one.</td></tr>
             <tr><td><span class="ui">Run when an agent finishes</span></td><td class="wrap">Turns automatic runs on or off.</td></tr>
             <tr><td><span class="ui">Send new failures back to the agent</span></td><td class="wrap">Turns the <a href="#loop">automatic fix loop</a> on or off.</td></tr>
@@ -208,7 +208,7 @@
             <tr><td><code>projects</code></td><td class="wrap">What to run, instead of detecting it. Each entry: <code>root</code> (folder from the workspace root; default the root), <code>runner</code> (detected when left out), <code>name</code>, <code>args</code> (added to the <a href="#how">command</a>), <code>env</code>, <code>autoRun</code> (run after an agent finishes; default true, false for browser tests).</td></tr>
             <tr><td><code>ignore</code></td><td class="wrap">Folders to leave out of detection, when there is no <code>projects</code>.</td></tr>
             <tr><td><code>autoRunScope</code></td><td class="wrap"><code>related</code> or <code>all</code>: what runs after an agent finishes, in this workspace.</td></tr>
-            <tr><td><code>env</code></td><td class="wrap">Environment variables for every project.</td></tr>
+            <tr><td><code>env</code></td><td class="wrap">Environment variables for every project. They are also written into the reproduce command an agent gets.</td></tr>
           </tbody>
         </table>
       </div>
