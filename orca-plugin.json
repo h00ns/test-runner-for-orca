@@ -3,7 +3,7 @@
   "manifestVersion": 2,
   "id": "test-runner",
   "name": "Test Runner",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Run your workspace's tests from the sidebar, re-run the related ones when an agent finishes, and send failures back to the agent. Vitest, Jest, Playwright, Cypress, Gradle, Maven and pytest are found on their own, monorepos included; if your setup is not, the README has a prompt that has your agent write .orca-test-runner.json at the repository root.",
   "author": {
     "name": "h00ns",

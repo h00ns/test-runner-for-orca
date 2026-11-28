@@ -46,10 +46,25 @@ test('each runner gets its own command', () => {
   const p = (runner: PromptProject['runner']) => ({ id: 'x', root: '', runner })
   assert.equal(reproduceCommand(p('playwright'), ['e2e/login.spec.ts'], 'logs in'), 'npx playwright test e2e/login.spec.ts -g "logs in"')
   assert.equal(reproduceCommand(p('cypress'), ['cypress/e2e/a.cy.ts', 'cypress/e2e/b.cy.ts']), 'npx cypress run --spec cypress/e2e/a.cy.ts,cypress/e2e/b.cy.ts')
-  assert.equal(reproduceCommand(p('pytest'), ['tests/test_cart.py'], 'test_total'), 'python -m pytest tests/test_cart.py -k "test_total"')
+  assert.equal(reproduceCommand(p('pytest'), ['tests/test_cart.py'], 'test_total'), 'python3 -m pytest tests/test_cart.py -k "test_total"')
   assert.equal(reproduceCommand(p('gradle'), ['src/test/java/com/acme/CartTest.java'], 'appliesCoupon'), './gradlew test --tests "*CartTest.appliesCoupon"')
   assert.equal(reproduceCommand(p('maven'), ['src/test/java/com/acme/CartTest.java'], 'appliesCoupon'), './mvnw test -Dtest="CartTest#appliesCoupon"')
   assert.equal(reproduceCommand(p('gradle'), []), './gradlew test')
+})
+
+test('pytest is reproduced with the Python that ran it', () => {
+  const py: PromptProject = { id: 'py:pytest', root: 'py', runner: 'pytest', python: '.venv/bin/python' }
+  assert.equal(reproduceCommand(py, ['py/tests/test_calc.py'], 'test_div'), 'cd py && .venv/bin/python -m pytest tests/test_calc.py -k "test_div"')
+})
+
+test("the config file's env is set in the reproduce command, quoted when it needs to be", () => {
+  const web: PromptProject = { id: 'e2e:playwright', root: 'e2e', runner: 'playwright', env: { BROWSERS: '/tmp/pw', GREETING: 'hi there', 'bad-name': 'x' } }
+  assert.equal(
+    reproduceCommand(web, ['e2e/home.spec.ts'], 'loads'),
+    'cd e2e && BROWSERS=/tmp/pw GREETING="hi there" npx playwright test home.spec.ts -g "loads"'
+  )
+  const long: PromptProject = { ...web, env: { TOKEN: 'x'.repeat(700) } }
+  assert.equal(reproduceCommand(long, ['e2e/home.spec.ts']), 'cd e2e && npx playwright test home.spec.ts (with the env from .orca-test-runner.json set)')
 })
 
 test('several failures list each, and every file once per project', () => {
@@ -72,7 +87,7 @@ test('failures in two projects get a command each', () => {
     failure,
     { ...failure, id: 'b', project: api.id, file: 'apps/api/src/user.test.ts' }
   ])
-  assert.match(prompt, /npx vitest run src\/sum\.test\.ts ; cd apps\/api && npx jest src\/user\.test\.ts/)
+  assert.match(prompt, /npx vitest run src\/sum\.test\.ts ; \(cd apps\/api && npx jest src\/user\.test\.ts\)/)
 })
 
 test('quotes titles and paths for the shell', () => {

@@ -31,7 +31,7 @@ of how your tests are configured, see [Configuration](#configuration).
 | --- | --- |
 | **Run all** | Runs every test in the workspace (or in the project picked above it). |
 | **Re-run failed** | Runs only the test files that failed last time. |
-| **Stop** | Stops the run in progress. |
+| **Stop** | Stops the run in progress, and what it started, such as Playwright's web server. |
 | Project picker | Shown in a monorepo: pick one package to run only that one. |
 | **Run when an agent finishes** | Turns automatic runs on or off. |
 | **Send new failures back to the agent** | Turns the [automatic fix loop](#the-automatic-fix-loop) on or off. |
@@ -170,7 +170,7 @@ variables, or browser tests you want run after each agent turn. Commit it, so yo
 | `projects` | What to run, instead of detecting it. Each entry: `root` (folder from the workspace root; default the root), `runner` (detected when left out), `name`, `args` (added to the [command](#how-tests-are-run)), `env`, `autoRun` (run after an agent finishes; default true, false for browser tests). |
 | `ignore` | Folders to leave out of detection, when there is no `projects`. |
 | `autoRunScope` | `related` or `all`: what runs after an agent finishes, in this workspace. |
-| `env` | Environment variables for every project. |
+| `env` | Environment variables for every project. They are also written into the reproduce command an agent gets. |
 
 Don't put reporter, output file, watch or coverage options in `args`: Test Runner adds its own.
 If the file has a mistake, the panel says what and where.

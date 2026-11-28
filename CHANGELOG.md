@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.4
+
+Found by running one repository with every runner (Vitest, Jest, Playwright, Cypress, Gradle,
+Maven, pytest) through the plugin in a real Orca:
+
+- **Stop** (and the timeout) left Playwright's web server running: Playwright starts it in its own
+  process group and exits on SIGTERM without stopping it, so the next run could find the port
+  taken. Runs are now stopped like Ctrl-C, which every runner cleans up after, and anything the
+  runner started that is still alive after the grace period is killed.
+- The reproduce command an agent gets now sets the `env` from `.orca-test-runner.json`. Without
+  it the agent saw a different failure (a missing browser, an unset variable) than the panel.
+- pytest is reproduced with the Python that ran it (`.venv/bin/python`), not `python`, which macOS
+  does not have.
+- Failures in several projects are reproduced in one line that works when pasted: each command
+  that changes folder runs in a subshell, so the second `cd` no longer starts from the first
+  one's folder.
+
 ## 0.2.3
 
 Found by testing every flow in a real Orca, with real agents:

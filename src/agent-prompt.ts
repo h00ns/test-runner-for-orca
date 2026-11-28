@@ -11,7 +11,18 @@ const MAX_COMMANDS = 3
 /** `terminal.sendText` and `agent.launch` take at most 4096 characters. */
 export const MAX_PROMPT_CHARS = 4000
 
-export type PromptProject = { id: string; root: string; runner: RunnerKind }
+export type PromptProject = {
+  id: string
+  root: string
+  runner: RunnerKind
+  /** Variables `.orca-test-runner.json` sets for this project: the agent's shell has none of them. */
+  env?: Record<string, string>
+  /** The Python that runs pytest, relative to the project folder when it is a virtualenv's. */
+  python?: string
+}
+
+/** Longer than this, the variables are named instead of written into the command. */
+const MAX_ENV_CHARS = 600
 
 /** One line without control characters. */
 export function oneLine(text: string): string {
@@ -61,7 +72,7 @@ export function reproduceCommand(project: PromptProject, files: readonly string[
       command = ['npx cypress run', ...(paths.length ? ['--spec', paths.join(',')] : [])].join(' ')
       break
     case 'pytest':
-      command = ['python -m pytest', ...paths, ...(name ? ['-k', quoteArg(name)] : [])].join(' ')
+      command = [`${shellPath(project.python ?? 'python3')} -m pytest`, ...paths, ...(name ? ['-k', quoteArg(name)] : [])].join(' ')
       break
     case 'gradle': {
       const cls = files.length === 1 ? (files[0]!.split('/').pop() ?? '').replace(/\.\w+$/, '') : ''
@@ -74,7 +85,22 @@ export function reproduceCommand(project: PromptProject, files: readonly string[
       break
     }
   }
+  const env = envPrefix(project.env)
+  if (env === null) {
+    command += ' (with the env from .orca-test-runner.json set)'
+  } else if (env) {
+    command = `${env} ${command}`
+  }
   return project.root ? `cd ${shellPath(project.root)} && ${command}` : command
+}
+
+/** `NAME=value …` for the command line; '' when there is nothing to set, null when it is too long. */
+function envPrefix(env: Record<string, string> | undefined): string | null {
+  const parts = Object.entries(env ?? {})
+    .filter(([name]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name))
+    .map(([name, value]) => `${name}=${/^[\w@%+=:,./-]*$/.test(value) ? value : quoteArg(oneLine(value))}`)
+  const line = parts.join(' ')
+  return line.length > MAX_ENV_CHARS ? null : line
 }
 
 function where(failure: TestFailure): string {
@@ -123,11 +149,15 @@ export function promptForFailures(
     }
     byProject.set(failure.project, files)
   }
-  const commands = [...byProject.entries()].slice(0, MAX_COMMANDS).map(([id, files]) => {
+  const entries = [...byProject.entries()].slice(0, MAX_COMMANDS)
+  // Each command starts from the workspace root: in one line, a second `cd` would start from
+  // the first one's folder, so commands that change folder run in a subshell.
+  const alone = (command: string) => (entries.length > 1 && command.startsWith('cd ') ? `(${command})` : command)
+  const commands = entries.map(([id, files]) => {
     const project = projects.get(id) ?? fallback
     return files.length > MAX_FILES
-      ? `${reproduceCommand(project, [])} (${files.length} files fail; run the whole suite)`
-      : reproduceCommand(project, files)
+      ? `${alone(reproduceCommand(project, []))} (${files.length} files fail; run the whole suite)`
+      : alone(reproduceCommand(project, files))
   })
   return finalize([
     prefix,

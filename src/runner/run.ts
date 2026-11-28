@@ -1,5 +1,5 @@
 // Runs one project's runner once and reads its report back.
-import { spawn, type ChildProcess } from 'node:child_process'
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { readFile, rm } from 'node:fs/promises'
@@ -14,7 +14,7 @@ import { parseReport, stripAnsi, type ParsedReport } from './report.ts'
 const OUTPUT_TAIL_CHARS = 8000
 /** After the runner exits, how long to wait for processes it left holding its output. */
 const EXIT_GRACE_MS = 2000
-/** After SIGTERM, how long before SIGKILL. */
+/** After SIGINT, how long before SIGKILL. */
 const KILL_GRACE_MS = 5000
 
 export const CANCELLED = 'Cancelled.'
@@ -57,14 +57,20 @@ function wrapper(cwd: string, unix: string, windows: string, fallback: string): 
   return { program: findOnPath(fallback) ?? fallback, args: [] }
 }
 
-function python(cwd: string): string {
+/** The project's virtualenv Python, relative to its folder; null when it has none. */
+export function venvPython(cwd: string): string | null {
   for (const dir of ['.venv', 'venv', 'env']) {
-    const file = process.platform === 'win32' ? join(cwd, dir, 'Scripts', 'python.exe') : join(cwd, dir, 'bin', 'python')
-    if (existsSync(file)) {
+    const file = process.platform === 'win32' ? join(dir, 'Scripts', 'python.exe') : join(dir, 'bin', 'python')
+    if (existsSync(join(cwd, file))) {
       return file
     }
   }
-  return findOnPath('python3') ?? findOnPath('python') ?? 'python3'
+  return null
+}
+
+function python(cwd: string): string {
+  const venv = venvPython(cwd)
+  return venv ? join(cwd, venv) : (findOnPath('python3') ?? findOnPath('python') ?? 'python3')
 }
 
 /** The command for one project and mode, and where its report lands. Pure but for lookups. */
@@ -232,6 +238,52 @@ function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
   }
 }
 
+/** Every process below `pid`, from a `ps -A -o pid=,ppid=` listing. */
+export function descendantsOf(pid: number, listing: string): number[] {
+  const children = new Map<number, number[]>()
+  for (const line of listing.split('\n')) {
+    const [child, parent] = line.trim().split(/\s+/).map(Number)
+    if (child && parent !== undefined && !Number.isNaN(parent)) {
+      children.set(parent, [...(children.get(parent) ?? []), child])
+    }
+  }
+  const found: number[] = []
+  const queue = [pid]
+  while (queue.length) {
+    for (const child of children.get(queue.shift()!) ?? []) {
+      if (!found.includes(child)) {
+        found.push(child)
+        queue.push(child)
+      }
+    }
+  }
+  return found
+}
+
+/** The runner's processes that left its process group: Playwright starts its web server that way. */
+function processTree(child: ChildProcess): number[] {
+  if (child.pid === undefined || process.platform === 'win32') {
+    return []
+  }
+  try {
+    return descendantsOf(child.pid, execFileSync('ps', ['-A', '-o', 'pid=,ppid='], { encoding: 'utf8', timeout: 2000 }))
+  } catch {
+    return []
+  }
+}
+
+function killAll(pids: readonly number[]): void {
+  for (const pid of pids) {
+    for (const target of [-pid, pid]) {
+      try {
+        process.kill(target, 'SIGKILL')
+      } catch {
+        // Gone already, or not a group leader.
+      }
+    }
+  }
+}
+
 export function rootsOf(root: string): string[] {
   try {
     const real = realpathSync(root)
@@ -299,6 +351,8 @@ export function startRun(project: ProjectSpec, mode: RunMode, timeoutMs: number,
   let stopped: 'cancelled' | 'timeout' | null = null
   let exitCode: number | null = null
   let finished = false
+  // Taken when the run is stopped, while the runner is still the parent of what it started.
+  let tree: number[] = []
   const timers: ReturnType<typeof setTimeout>[] = []
   let settle: (outcome: RunOutcome) => void = () => {}
   const done = new Promise<RunOutcome>((resolve) => (settle = resolve))
@@ -329,6 +383,7 @@ export function startRun(project: ProjectSpec, mode: RunMode, timeoutMs: number,
     child.stderr?.destroy()
     // Whatever the runner left behind goes now, so nothing outlives the run.
     signalGroup(child, 'SIGKILL')
+    killAll(tree)
     try {
       settle(await outcome(spawnError))
     } finally {
@@ -375,7 +430,10 @@ export function startRun(project: ProjectSpec, mode: RunMode, timeoutMs: number,
       return
     }
     stopped ??= reason
-    signalGroup(child, 'SIGTERM')
+    // Ctrl-C, which every runner handles by cleaning up: on SIGTERM Playwright exits at once and
+    // leaves its web server running. Whatever ignores it is killed after the grace period.
+    tree = processTree(child)
+    signalGroup(child, 'SIGINT')
     timers.push(setTimeout(() => void finish(), KILL_GRACE_MS))
   }
 

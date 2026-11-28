@@ -19,7 +19,7 @@ import type {
   WorkspaceSupport
 } from './protocol.ts'
 import { discoverProjects, type Discovery, type ProjectSpec } from './runner/projects.ts'
-import { runsFiles, runsRelated, startRun, type RunHandle, type RunMode, type RunOutcome } from './runner/run.ts'
+import { runsFiles, runsRelated, startRun, venvPython, type RunHandle, type RunMode, type RunOutcome } from './runner/run.ts'
 import { changedFiles, headCommit, workspaceSignature, type Changes } from './workspace-signature.ts'
 
 type Workspace = { id: string; name: string; branch: string; path: string; hostId: string | null }
@@ -787,7 +787,12 @@ export default function activate(orca: OrcaWorkerApi): void {
   function promptProjects(workspace: Workspace): Map<string, PromptProject> {
     const found = discover(workspace)
     const projects = found.kind === 'ok' ? found.projects : []
-    return new Map(projects.map((p) => [p.id, { id: p.id, root: p.root, runner: p.runner }]))
+    return new Map(
+      projects.map((p) => {
+        const python = p.runner === 'pytest' ? (venvPython(p.cwd) ?? (process.platform === 'win32' ? 'python' : 'python3')) : undefined
+        return [p.id, { id: p.id, root: p.root, runner: p.runner, env: p.env, ...(python ? { python } : {}) }]
+      })
+    )
   }
 
   function scheduleAutoRun(workspaceId: string): void {
